@@ -226,6 +226,12 @@
       flex: 0 1 auto;
     }
 
+    /* Without the equal bases nothing pushes the selection cluster over, so
+       it would trail the view controls or start the wrapped line on the left. */
+    .right {
+      margin-left: auto;
+    }
+
     .size {
       display: none;
     }
