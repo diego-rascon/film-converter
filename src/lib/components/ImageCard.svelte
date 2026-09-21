@@ -6,6 +6,8 @@
 
   interface Props {
     image: ImageItem;
+    /** Something in the roll is picked, so every card shows its box. */
+    anySelected: boolean;
     /** Show the untouched scan instead of the developed result. */
     showOriginal: boolean;
     onopen: () => void;
@@ -17,6 +19,7 @@
 
   let {
     image,
+    anySelected,
     showOriginal,
     onopen,
     ontoggleSelect,
@@ -49,7 +52,7 @@
       <span class="badge">Before</span>
     {/if}
 
-    <span class="pick" class:visible={image.selected}>
+    <span class="pick" class:visible={anySelected}>
       <input
         type="checkbox"
         checked={image.selected}
@@ -59,25 +62,21 @@
     </span>
   </div>
 
-  <ImageMenu
-    variant="overlay"
-    name={image.name}
-    {oninfo}
-    {onreveal}
-    {onremove}
-  />
-
   <figcaption>
     <span class="name" title={image.path}>{image.name}</span>
     <StatusChip {image} compact />
+    <ImageMenu
+      variant="caption"
+      name={image.name}
+      {oninfo}
+      {onreveal}
+      {onremove}
+    />
   </figcaption>
 </figure>
 
 <style>
   figure {
-    /* The actions menu is a child of the figure rather than of the frame:
-       its popover would be clipped by the frame's `overflow: hidden`. */
-    position: relative;
     margin: 0;
     display: flex;
     flex-direction: column;
@@ -198,29 +197,42 @@
     border-color: #fff;
   }
 
-  /* Hovering anywhere on the figure — the caption included — brings both
-     overlays up, so they appear and disappear together. The menu reveals
-     itself the same way; it owns its own opacity while it is open. */
+  /* Hovering anywhere on the figure — the caption included — brings the box
+     and the menu up together, since they are the card's two controls. The
+     box also stays up on every card once anything is picked: with a
+     selection running, the next click is likely to extend it. The menu owns
+     its own opacity while it is open, so the pointer can leave the card
+     without the popover's own button vanishing under it. */
   figure:hover .pick,
   .pick:focus-within,
   .pick.visible {
     opacity: 1;
   }
 
-  figure:hover :global(.image-menu.overlay) {
+  figure:hover :global(.image-menu.caption) {
     opacity: 1;
   }
 
+  /* The caption reads in the list's order — name, status, actions — so an
+     image's controls are in the same sequence in both views. The menu ends
+     it rather than floating over the thumbnail: the picture is what the
+     grid is for, and the popover still escapes `.frame`'s `overflow:
+     hidden` down here. */
   figcaption {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: 8px;
     min-width: 0;
+    /* The name's ink sits 2px inside the frame; the menu gives that back at
+       its end, where the glyph's box is wider than its ink. */
     padding: 0 2px;
   }
 
   .name {
+    /* Takes the slack, so the chip and the menu stay on the right edge
+       however short the name is. */
+    flex: 1;
+    min-width: 0;
     font-size: 12px;
     color: var(--text-muted);
     white-space: nowrap;

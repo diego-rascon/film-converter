@@ -3,13 +3,14 @@
 
   /**
    * The per-image actions, behind one three-dot button. It is the same menu
-   * in both views; only the button changes — `overlay` floats over a card's
-   * thumbnail, `inline` sits in a list row's action column.
+   * in both views; only the button changes — `caption` sits at the right end
+   * of a card's caption, on the name's line, and `inline` in a list row's
+   * action column.
    */
   interface Props {
     /** Named in the button's label, so screen readers say which image. */
     name: string;
-    variant?: "overlay" | "inline";
+    variant?: "caption" | "inline";
     oninfo: () => void;
     onreveal: () => void;
     onremove: () => void;
@@ -81,7 +82,7 @@
     aria-label="Actions for {name}"
     title="Actions"
   >
-    <Icon name="more" size={variant === "overlay" ? 15 : 16} />
+    <Icon name="more" size={variant === "inline" ? 16 : 15} />
   </button>
 
   {#if open}
@@ -109,19 +110,21 @@
     flex: none;
   }
 
-  /* Card view: the button is a chip over the thumbnail's top-right corner.
-     The popover has to escape the frame's `overflow: hidden`, so the host is
-     a sibling of the frame and positions itself against the figure. */
-  .image-menu.overlay {
-    position: absolute;
-    top: 7px;
-    right: 7px;
+  /* Card view: the button ends the caption, level with the name rather than
+     floating over the picture — so it is a plain muted glyph like a row's,
+     not a glass chip. It keeps out of the way until the card is hovered,
+     which the card itself decides; open or focused it stays up, so the
+     pointer can leave the card while the popover is on screen. The 2px the
+     caption is inset by is paid back here, because a 15px glyph in a 24px
+     box already hangs past its own ink. */
+  .image-menu.caption {
+    margin-right: -2px;
     opacity: 0;
     transition: opacity 0.12s ease;
   }
 
-  .image-menu.overlay.open,
-  .image-menu.overlay:focus-within {
+  .image-menu.caption.open,
+  .image-menu.caption:focus-within {
     opacity: 1;
   }
 
@@ -133,18 +136,19 @@
       color 0.12s ease;
   }
 
-  .overlay .trigger {
+  /* A touch smaller than a row's, so the caption stays close to the height
+     of the name it sits on. */
+  .caption .trigger {
     width: 24px;
     height: 24px;
     border-radius: var(--radius-sm);
-    background: var(--glass);
-    backdrop-filter: var(--glass-blur);
-    color: #fff;
+    color: var(--text-muted);
   }
 
-  .overlay .trigger:hover,
-  .overlay.open .trigger {
-    background: var(--glass-hover);
+  .caption .trigger:hover,
+  .caption.open .trigger {
+    background: var(--surface-sunken);
+    color: var(--text);
   }
 
   /* List view: the same square as the remove button it replaced, on the

@@ -196,8 +196,8 @@ the front end resets anything still marked `developing` back to `pending`.
   missing the rule falls back to a near-opaque black, so the viewer is never
   see-through. Anything that floats *over a picture* is frosted the same way
   from one set of tokens: `--glass`, `--glass-hover` and `--glass-blur` in
-  [app.css](src/app.css), used by a card's checkbox and menu button, the
-  viewer's before/after tags and its two control pods. They are not
+  [app.css](src/app.css), used by a card's checkbox, the viewer's
+  before/after tags and its two control pods. They are not
   theme-scoped — what is behind them is a photograph, not a surface — and the
   `@supports` block that frosts them also *lowers* the black, because without
   the blur the same alpha would not separate the chip from the picture. A new
@@ -251,8 +251,21 @@ the front end resets anything still marked `developing` back to `pending`.
   have to agree: the widths are `--col-*` custom properties set on `.list` in
   [+page.svelte](src/routes/+page.svelte), while the side padding is written out in both
   and has to stay identical — the gutter on the left, `calc(var(--gutter) - 6px)` on the
-  right for the menu button's hang. A column added to one needs the same slot in the
-  other, and a change to either padding needs the same change to the other.
+  right for the menu button's hang. Both also carry the same
+  `margin-right: calc(var(--gutter) - 10px)` on their checkbox, which is what puts the
+  gutter on *both* of its sides: the flex gap already spends 10px of it, and the
+  columns start where a row's thumbnail does. A column added to one needs the same slot
+  in the other, and a change to either padding or that margin needs the same change to
+  the other. A row's checkbox is otherwise faded out: it comes up under the pointer, and
+  on every row at once as soon as anything is picked — the box is only in the way while
+  there is no selection to extend. A card's does exactly the same, from the same
+  `anySelected` prop, which [+page.svelte](src/routes/+page.svelte) passes to both from
+  `session.hasSelection`; that is also why a card's box no longer keys off its own
+  `image.selected`, which `anySelected` already covers. Both fade rather than hide — a
+  row's would collapse the column it holds and take the header's grid with it — and the
+  row's rule restates the base transition from [app.css](src/app.css), because a scoped
+  `transition` replaces it outright. The header's own checkbox always shows: it is
+  select-all, and the only way back out of a selection.
   With a selection the bar swaps its right side for the tally: the headings, the sort
   buttons and the list's status and action slots all give way to `N images selected`,
   and only the checkbox stays, since it is how the selection is cleared. Its height is
@@ -326,7 +339,11 @@ the front end resets anything still marked `developing` back to `pending`.
   "outside" means outside its own host rather than outside any `[data-popover]`, so
   pressing one image's button closes the menu another image left open. It carries no
   `data-popover` attribute for the same reason — opening it should dismiss the toolbar's.
-  On a card it has to sit *outside* `.frame`, whose `overflow: hidden` would clip it.
+  It has two button variants and no third: `inline` takes a list row's `--col-action`
+  slot, and `caption` ends a card's caption, level with the name. Both sit *outside*
+  `.frame`, whose `overflow: hidden` would clip the popover — which is also why the
+  card's button cannot go back over the thumbnail without the menu becoming a child of
+  the figure again.
   Adding files goes through the toolbar's one **Add** menu (images or a folder); the
   [DropZone](src/lib/components/DropZone.svelte) still offers both as separate buttons
   because it has the room and nothing else to show.

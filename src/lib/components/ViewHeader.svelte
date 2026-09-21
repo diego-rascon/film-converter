@@ -98,6 +98,13 @@
     border-bottom: 1px solid var(--border);
   }
 
+  /* A row's margin exactly, so the columns start where a thumbnail does and
+     the box keeps the gutter on both of its sides. It is unconditional rather
+     than list-only so the tally does not shift when the view is switched. */
+  .head > input[type="checkbox"] {
+    margin-right: calc(var(--gutter) - 10px);
+  }
+
   .cols {
     display: flex;
     align-items: center;

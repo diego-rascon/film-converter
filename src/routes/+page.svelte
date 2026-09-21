@@ -207,6 +207,7 @@
           {#each session.images as image (image.path)}
             <ImageCard
               {image}
+              anySelected={session.hasSelection}
               {showOriginal}
               onopen={() => session.openViewer(image.path)}
               ontoggleSelect={(event) => pick(image.path, event)}
@@ -225,6 +226,7 @@
             <ImageRow
               {image}
               striped={index % 2 === 1}
+              anySelected={session.hasSelection}
               {showOriginal}
               onopen={() => session.openViewer(image.path)}
               ontoggleSelect={(event) => pick(image.path, event)}

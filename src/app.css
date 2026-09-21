@@ -42,8 +42,8 @@
      a dark one, so each theme needs its own amount of it. */
   --viewer-backdrop: rgba(9, 9, 11, 0.74);
 
-  /* Anything that floats over a picture: a card's checkbox and menu button,
-     the viewer's before/after tags and its two control pods. None of them
+  /* Anything that floats over a picture: a card's checkbox, the viewer's
+     before/after tags and its two control pods. None of them
      can take their contrast from the surface tokens, because what is behind
      them is a photograph — so they are all the same frosted black in both
      themes. The blur does half the separating, which is why the fallback

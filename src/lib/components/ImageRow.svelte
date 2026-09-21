@@ -9,6 +9,8 @@
     image: ImageItem;
     /** Every other row, so the eye can follow one across the columns. */
     striped: boolean;
+    /** Something in the roll is picked, so every row shows its box. */
+    anySelected: boolean;
     showOriginal: boolean;
     onopen: () => void;
     ontoggleSelect: (event: MouseEvent) => void;
@@ -20,6 +22,7 @@
   let {
     image,
     striped,
+    anySelected,
     showOriginal,
     onopen,
     ontoggleSelect,
@@ -31,7 +34,12 @@
   let source = $derived(showOriginal ? image.original : image.developed);
 </script>
 
-<div class="row" class:striped class:selected={image.selected}>
+<div
+  class="row"
+  class:striped
+  class:picking={anySelected}
+  class:selected={image.selected}
+>
   <input
     type="checkbox"
     checked={image.selected}
@@ -93,6 +101,31 @@
   .row.selected {
     background: var(--accent-soft);
     box-shadow: inset 2px 0 0 var(--accent);
+  }
+
+  /* The box is flanked by the gutter: the window's line at one end, the same
+     distance from the thumbnail at the other — the flex gap plus this. The
+     header's checkbox carries the identical margin, or the two stop sharing
+     one column grid. */
+  .row > input[type="checkbox"] {
+    margin-right: calc(var(--gutter) - 10px);
+    /* And it stays out of the way until it is wanted: under the pointer, or
+       on every row at once as soon as something is picked, the way a card's
+       box comes up on hover. Faded rather than hidden, so the column it holds
+       never collapses and the rows keep the header's grid. */
+    opacity: 0;
+    /* The base rule's transition restated, since a `transition` here replaces
+       it outright and the fill would otherwise snap when the box is ticked. */
+    transition:
+      opacity 0.12s ease,
+      background-color 0.12s ease,
+      border-color 0.12s ease;
+  }
+
+  .row:hover > input[type="checkbox"],
+  .row.picking > input[type="checkbox"],
+  .row > input[type="checkbox"]:focus-visible {
+    opacity: 1;
   }
 
   .open {
