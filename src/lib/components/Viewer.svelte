@@ -1,5 +1,7 @@
 <script lang="ts">
   import Icon from "./Icon.svelte";
+  import ImageFacts from "./ImageFacts.svelte";
+  import StatusChip from "./StatusChip.svelte";
   import WindowControls from "./WindowControls.svelte";
   import { FULL_PREVIEW_EDGE, buildPreview } from "$lib/api";
   import { session } from "$lib/session.svelte";
@@ -9,12 +11,20 @@
     image: ImageItem;
     index: number;
     total: number;
+    /** Shows the image in the file manager; the page owns the failure notice. */
+    onreveal: () => void;
   }
 
-  let { image, index, total }: Props = $props();
+  let { image, index, total, onreveal }: Props = $props();
 
   type Mode = "before" | "wipe" | "after";
   let mode = $state<Mode>("wipe");
+  /**
+   * The details panel is a sidebar, not a dialog: it stays open while the
+   * arrows move through the roll, and `ImageFacts` re-reads each file as it
+   * arrives, so the metadata can be browsed alongside the pictures.
+   */
+  let details = $state(false);
   /** Position of the wipe divider, 0-100. */
   let wipe = $state(50);
   let dragging = $state(false);
@@ -96,6 +106,10 @@
       case "B":
         mode = mode === "before" ? "after" : "before";
         break;
+      case "i":
+      case "I":
+        details = !details;
+        break;
       case "Delete":
       case "Backspace":
         event.preventDefault();
@@ -109,6 +123,23 @@
 
 <div class="viewer">
   <header data-tauri-drag-region>
+    <!-- What changes the view, on the gutter, mirroring the toolbar's own
+         left end. The switch keeps its own order: before on the left and
+         after on the right is the order the wipe reveals them in. -->
+    <div class="left" data-tauri-drag-region>
+      <div class="modes" role="group" aria-label="Comparison mode">
+        <button class:active={mode === "before"} onclick={() => (mode = "before")}>
+          Before
+        </button>
+        <button class:active={mode === "wipe"} onclick={() => (mode = "wipe")}>
+          Compare
+        </button>
+        <button class:active={mode === "after"} onclick={() => (mode = "after")}>
+          After
+        </button>
+      </div>
+    </div>
+
     <div class="title" data-tauri-drag-region>
       <span class="name" title={image.path} data-tauri-drag-region>{image.name}</span>
       <span class="position" data-tauri-drag-region>
@@ -119,37 +150,54 @@
       </span>
     </div>
 
-    <div class="modes" role="group" aria-label="Comparison mode">
-      <button class:active={mode === "before"} onclick={() => (mode = "before")}>
-        Before
-      </button>
-      <button class:active={mode === "wipe"} onclick={() => (mode = "wipe")}>
-        Compare
-      </button>
-      <button class:active={mode === "after"} onclick={() => (mode = "after")}>
-        After
-      </button>
-    </div>
+    <div class="right" data-tauri-drag-region>
+      <!-- The same three the toolbar carries, in the same order and at the
+           same end of the bar, so an image's actions are where they were
+           before it was opened. Details is a toggle here rather than a
+           dialog, but it is still the image's properties, so it keeps its
+           place. The gap to the window's own buttons is the bar's, not the
+           cluster's 2px: remove must not end up flush against close. -->
+      <div class="actions" data-tauri-drag-region>
+        <button
+          class="icon-btn"
+          class:on={details}
+          onclick={() => (details = !details)}
+          aria-pressed={details}
+          aria-label="Details"
+          title="Details (I)"
+        >
+          <Icon name="info" />
+        </button>
+        <button
+          class="icon-btn"
+          onclick={onreveal}
+          aria-label="Show in folder"
+          title="Show in folder"
+        >
+          <Icon name="folder" />
+        </button>
+        <button
+          class="icon-btn danger"
+          onclick={() => session.remove([image.path])}
+          aria-label="Remove from session"
+          title="Remove from session (Del)"
+        >
+          <Icon name="trash" />
+        </button>
+      </div>
 
-    <div class="tools">
-      <button
-        class="icon-btn"
-        onclick={() => session.remove([image.path])}
-        aria-label="Remove from session"
-        title="Remove from session"
-      >
-        <Icon name="trash" />
-      </button>
-      <button
-        class="icon-btn"
-        onclick={() => session.closeViewer()}
-        aria-label="Close viewer"
-        title="Close (Esc)"
-      >
-        <Icon name="close" />
-      </button>
+      <div class="tools" data-tauri-drag-region>
+        <button
+          class="icon-btn"
+          onclick={() => session.closeViewer()}
+          aria-label="Close viewer"
+          title="Close (Esc)"
+        >
+          <Icon name="close" />
+        </button>
 
-      <WindowControls />
+        <WindowControls />
+      </div>
     </div>
   </header>
 
@@ -224,12 +272,37 @@
     >
       <Icon name="chevronRight" size={22} />
     </button>
+
+    {#if details}
+      <aside class="details" aria-label="Details">
+        <div class="details-head">
+          <h2>Details</h2>
+          <button
+            class="icon-btn small"
+            onclick={() => (details = false)}
+            aria-label="Hide details"
+            title="Hide details (I)"
+          >
+            <Icon name="close" size={15} />
+          </button>
+        </div>
+
+        <div class="details-body">
+          <!-- The name is already in the titlebar above, so the panel opens
+               on the status and goes straight into the file's properties. -->
+          <StatusChip {image} />
+          <ImageFacts {image} dense />
+        </div>
+      </aside>
+    {/if}
   </div>
 
   <footer>
     <kbd>←</kbd><kbd>→</kbd> browse
     <span class="sep">·</span>
     <kbd>B</kbd> before / after
+    <span class="sep">·</span>
+    <kbd>I</kbd> details
     <span class="sep">·</span>
     <kbd>Del</kbd> remove
     <span class="sep">·</span>
@@ -254,21 +327,54 @@
     gap: 16px;
     flex: none;
     height: var(--header-height);
-    padding: 0 10px 0 18px;
+    /* The mode switch is a filled pill, so its own edge is the ink and it
+       sits on the gutter exactly; the far end keeps the titlebar's 10px,
+       since what ends it is the window's own buttons. */
+    padding: 0 10px 0 var(--gutter);
     background: var(--surface);
     border-bottom: 1px solid var(--border);
   }
 
+  /* Equal bases on the flanks put the name on the window's centre line
+     rather than the centre of what is left over — the same arrangement the
+     toolbar uses for Add. They are free to outgrow that share: at the
+     smallest window the right end — the image's actions and the window's
+     own buttons — needs more than half of it, and the name slides left
+     rather than disappearing under it. */
+  .left,
+  .right {
+    flex: 1 1 0;
+  }
+
+  .left {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+  }
+
+  .right {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 16px;
+    min-width: 0;
+  }
+
   .title {
-    flex: 1;
+    /* Shrinks before the flanks do, so a long name ellipsises instead of
+       pushing the buttons off the ends. */
+    flex: 0 1 auto;
     min-width: 0;
     display: flex;
     flex-direction: column;
+    align-items: center;
     justify-content: center;
+    text-align: center;
     line-height: 1.25;
   }
 
   .name {
+    max-width: 100%;
     font-size: 13px;
     font-weight: 600;
     white-space: nowrap;
@@ -290,6 +396,8 @@
     display: flex;
     gap: 2px;
     flex: none;
+    /* Never squeezed: the name gives way first. */
+    white-space: nowrap;
     padding: 2px;
     border-radius: var(--radius-sm);
     background: var(--surface-sunken);
@@ -316,10 +424,25 @@
     box-shadow: var(--shadow-sm);
   }
 
+  .actions,
   .tools {
     display: flex;
+    align-items: center;
     gap: 2px;
     flex: none;
+  }
+
+  /* Muted at rest like the toolbar's, and red only under the pointer: it is
+     on screen for as long as the viewer is, next to nothing that undoes it. */
+  .danger:hover {
+    background: var(--danger-soft);
+    color: var(--danger);
+  }
+
+  /* Pressed, the same way the toolbar marks its compare toggle. */
+  .icon-btn.on {
+    background: var(--accent-soft);
+    color: var(--accent);
   }
 
   .body {
@@ -456,6 +579,58 @@
     margin-left: auto;
   }
 
+  .details {
+    display: flex;
+    flex-direction: column;
+    width: 272px;
+    /* The nav buttons hug the stage; the panel is its own thing. */
+    margin-left: 10px;
+    height: 100%;
+    flex: none;
+    overflow: hidden;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .details-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex: none;
+    padding: 8px 8px 8px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .details-head h2 {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+  }
+
+  .icon-btn.small {
+    width: 26px;
+    height: 26px;
+  }
+
+  /* The panel scrolls on its own: a long output path must not push the
+     picture around. */
+  .details-body {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 14px;
+  }
+
   .message {
     display: flex;
     flex-direction: column;
@@ -519,6 +694,13 @@
   @keyframes fade {
     from {
       opacity: 0;
+    }
+  }
+
+  @media (max-width: 900px) {
+    /* Narrow windows cannot spare 272px beside the picture. */
+    .details {
+      width: 232px;
     }
   }
 

@@ -257,6 +257,7 @@
     image={session.viewerImage}
     index={session.viewerIndex}
     total={session.total}
+    onreveal={() => reveal(session.viewerImage!.path)}
   />
 {/if}
 

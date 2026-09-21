@@ -143,12 +143,17 @@ the front end resets anything still marked `developing` back to `pending`.
   accent *filled* under `--accent-text`, which wants more light in it. `.btn-primary`
   (**Save…** and the drop zone's button) is the filled one. Dark mode points
   `--accent-solid` back at `--accent`, whose lighter value already fills well.
-- The toolbar's left cluster is the selection's actions — properties, show in folder,
-  remove — the same three an image's own [ImageMenu](src/lib/components/ImageMenu.svelte)
-  carries, as icons. They are always there and go disabled without a selection rather
-  than appearing with one, so the toolbar never shifts under the pointer; properties
-  needs exactly one image, the other two take any number. **Remove** is muted at rest
-  and only turns red under the pointer, because it is on screen the whole time.
+- The toolbar's ends are split by what a control acts on: the *view* on the left —
+  grid/list, the thumbnail slider, the before/after toggle — and the *selection* on
+  the right. The right cluster is properties, show in folder, remove, the same three
+  an image's own [ImageMenu](src/lib/components/ImageMenu.svelte) carries, as icons.
+  They are always there and go disabled without a selection rather than appearing
+  with one, so the toolbar never shifts under the pointer; properties needs exactly
+  one image, the other two take any number. **Remove** is muted at rest and only
+  turns red under the pointer, because it is on screen the whole time. The view
+  cluster is ordered outwards from its edge — the grid/list switch first — so the
+  thumbnail slider, which only exists in grid view, moves nothing but itself when
+  the view is switched.
 - The status bar's left end is deliberately quiet: a muted count of the loaded
   images and nothing else. Everything that used to sit there — the notice, the run
   summary, the failed-image list — is now
@@ -161,6 +166,30 @@ the front end resets anything still marked `developing` back to `pending`.
   footer's right cluster is pushed over by `margin-left: auto` rather than the footer
   being `space-between`: the count is absent before any image is loaded, and **Save…**
   must not slide left when it is.
+- [Viewer.svelte](src/lib/components/Viewer.svelte) splits its header the way the
+  toolbar splits its bar, so an image's actions are where they were before it was
+  opened: the before/after switch on the left, on the same `--gutter`, and details,
+  show in folder and remove on the right, in the toolbar's order. Close and the
+  window's own buttons follow them a full 16px bar gap away rather than the
+  cluster's 2px, so **Remove** never ends up flush against a close button.
+  It is muted at rest and red only under the pointer, for the toolbar's reason.
+  The mode switch keeps its own order — before on the left, after on the right is
+  the order the wipe reveals them in. The name and
+  position sit between the two, on the window's centre line by way of equal
+  `flex: 1 1 0` flanks rather than the titlebar's absolute positioning: at the
+  720px minimum width the right end needs more than its half, and the name has to
+  slide left rather than end up underneath it. Only the name shrinks — the flanks'
+  `0` basis leaves them nothing to give.
+- **Details** opens a panel beside the picture instead of the properties dialog.
+  It is a sidebar, not a modal: it stays open while the arrows move through the
+  roll, `Escape` still closes the viewer, and the stage narrows rather than the
+  panel floating over it, so the wipe divider stays reachable. Its body is
+  [ImageFacts.svelte](src/lib/components/ImageFacts.svelte), the same list
+  [InfoModal](src/lib/components/InfoModal.svelte) shows, `dense` so the labels
+  stack above their values in the narrow column. It reads each file's header as
+  the viewer arrives at it and keeps what it has read: a header does not change
+  under an open session, and browsing back and forth would otherwise blink through
+  the waiting line at every press.
 - [ViewHeader.svelte](src/lib/components/ViewHeader.svelte) is the bar above the images
   in *both* views, and the only place select-all and the sort controls live — the toolbar
   deliberately carries neither. It reads `settings.viewMode` itself: in list view the sort
@@ -185,13 +214,16 @@ the front end resets anything still marked `developing` back to `pending`.
   rows read as one block. The stripe is `--stripe`, an overlay rather than a fourth
   surface colour, and its parity comes from the `striped` prop rather than
   `:nth-child`, which the header would otherwise throw off by one.
-- `--gutter` is the one left margin in the app: the toolbar's actions, the status bar's
-  tally, the cards, the rows and the header checkbox all sit on it, which is why the
-  checkbox does not move when the view is switched. The titlebar is the exception — its
-  title is centred on the *window*, absolutely positioned rather than a flex item, so it
-  stays put when the right cluster gains a button. A cluster pays for whatever its first
-  control hangs left of its ink — the toolbar spends `calc(var(--gutter) - 9px)`, half
-  the difference between its 34px icon buttons and their 16px glyphs.
+- `--gutter` is the one left margin in the app: the toolbar's view switch, the status
+  bar's tally, the cards, the rows and the header checkbox all sit on it, which is why
+  the checkbox does not move when the view is switched. The titlebar is the exception
+  — its title is centred on the *window*, absolutely positioned rather than a flex
+  item, so it stays put when the right cluster gains a button. What a bar spends on
+  the gutter depends on what its first control hangs outside its ink: a filled pill
+  like the view switch or the viewer's mode switch *is* its own edge and gets
+  `var(--gutter)` exactly, while a bare icon button hangs half the difference between
+  its box and its glyph, which is what the toolbar's far end pays as
+  `calc(var(--gutter) - 9px)` for a 16px glyph in a 34px box.
   `input[type="checkbox"]` has its UA margin zeroed in [app.css](src/app.css) for the
   same reason — it would otherwise sit 4px inside.
 - Popovers — the header's settings and menu, the toolbar's **Add** — are absolutely

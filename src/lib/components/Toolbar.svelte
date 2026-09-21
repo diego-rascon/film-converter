@@ -60,10 +60,95 @@
 />
 
 <div class="toolbar">
+  <!-- How the images are shown, mirrored from the right end it used to sit
+       at: the view switch is on the gutter and stays there, so the thumbnail
+       slider coming and going with grid view moves only itself. -->
+  <div class="left">
+    <div class="segmented">
+      <button
+        class:active={settings.viewMode === "grid"}
+        onclick={() => {
+          settings.viewMode = "grid";
+          settings.save();
+        }}
+        aria-label="Grid view"
+        title="Grid view"
+      >
+        <Icon name="grid" size={15} />
+      </button>
+      <button
+        class:active={settings.viewMode === "list"}
+        onclick={() => {
+          settings.viewMode = "list";
+          settings.save();
+        }}
+        aria-label="List view"
+        title="List view"
+      >
+        <Icon name="list" size={15} />
+      </button>
+    </div>
+
+    {#if settings.viewMode === "grid"}
+      <label class="size">
+        <span class="sr-only">Thumbnail size</span>
+        <Icon name="image" size={13} />
+        <input
+          type="range"
+          min="140"
+          max="420"
+          step="10"
+          bind:value={settings.cardSize}
+          onchange={() => settings.save()}
+        />
+      </label>
+    {/if}
+
+    <button
+      class="btn btn-ghost"
+      class:on={showOriginal}
+      onclick={ontoggleCompare}
+      title="Toggle between the scans and the developed results"
+    >
+      <Icon name="compare" size={15} />
+      {showOriginal ? "Before" : "After"}
+    </button>
+  </div>
+
+  <div class="center">
+    <div class="popover-host" data-popover>
+      <button
+        class="btn btn-ghost add"
+        class:open={addOpen}
+        onclick={() => (addOpen = !addOpen)}
+        aria-expanded={addOpen}
+        aria-haspopup="menu"
+        title="Add scans"
+      >
+        <Icon name="plus" size={15} />
+        Add
+        <Icon name="chevronDown" size={13} />
+      </button>
+
+      {#if addOpen}
+        <div class="popover menu" role="menu">
+          <button role="menuitem" onclick={() => choose(onpickFiles)}>
+            <Icon name="image" size={15} />
+            Add images…
+          </button>
+          <button role="menuitem" onclick={() => choose(onpickFolder)}>
+            <Icon name="folder" size={15} />
+            Add folder…
+          </button>
+        </div>
+      {/if}
+    </div>
+  </div>
+
   <!-- The same three actions an image's own menu carries, aimed at the
        selection. They stay put and go dim rather than appearing with a
        selection, so nothing in the toolbar shifts under the pointer. -->
-  <div class="left">
+  <div class="right">
     <button
       class="icon-btn"
       disabled={!single}
@@ -100,88 +185,6 @@
       <Icon name="trash" size={16} />
     </button>
   </div>
-
-  <div class="center">
-    <div class="popover-host" data-popover>
-      <button
-        class="btn btn-ghost add"
-        class:open={addOpen}
-        onclick={() => (addOpen = !addOpen)}
-        aria-expanded={addOpen}
-        aria-haspopup="menu"
-        title="Add scans"
-      >
-        <Icon name="plus" size={15} />
-        Add
-        <Icon name="chevronDown" size={13} />
-      </button>
-
-      {#if addOpen}
-        <div class="popover menu" role="menu">
-          <button role="menuitem" onclick={() => choose(onpickFiles)}>
-            <Icon name="image" size={15} />
-            Add images…
-          </button>
-          <button role="menuitem" onclick={() => choose(onpickFolder)}>
-            <Icon name="folder" size={15} />
-            Add folder…
-          </button>
-        </div>
-      {/if}
-    </div>
-  </div>
-
-  <div class="right">
-    <button
-      class="btn btn-ghost"
-      class:on={showOriginal}
-      onclick={ontoggleCompare}
-      title="Toggle between the scans and the developed results"
-    >
-      <Icon name="compare" size={15} />
-      {showOriginal ? "Before" : "After"}
-    </button>
-
-    {#if settings.viewMode === "grid"}
-      <label class="size">
-        <span class="sr-only">Thumbnail size</span>
-        <Icon name="image" size={13} />
-        <input
-          type="range"
-          min="140"
-          max="420"
-          step="10"
-          bind:value={settings.cardSize}
-          onchange={() => settings.save()}
-        />
-      </label>
-    {/if}
-
-    <div class="segmented">
-      <button
-        class:active={settings.viewMode === "grid"}
-        onclick={() => {
-          settings.viewMode = "grid";
-          settings.save();
-        }}
-        aria-label="Grid view"
-        title="Grid view"
-      >
-        <Icon name="grid" size={15} />
-      </button>
-      <button
-        class:active={settings.viewMode === "list"}
-        onclick={() => {
-          settings.viewMode = "list";
-          settings.save();
-        }}
-        aria-label="List view"
-        title="List view"
-      >
-        <Icon name="list" size={15} />
-      </button>
-    </div>
-  </div>
 </div>
 
 <style>
@@ -192,11 +195,12 @@
     flex: none;
     /* The gutter lives on the bar, the way the titlebar's and the status
        bar's do, rather than on the cluster inside it: a cluster padding
-       stacks with the bar's own and the icons end up a full bar padding
-       right of the line everything else is on. The first icon is a 16px
-       glyph centred in a 34px box, so the box starts 9px left of the ink
-       the eye lines up with the gutter. */
-    padding: 7px 12px 7px calc(var(--gutter) - 9px);
+       stacks with the bar's own and the controls end up a full bar padding
+       inside the line everything else is on. The view switch is a filled
+       pill, so its own edge is the ink and it sits on the gutter exactly.
+       The far end is a 16px glyph centred in a 34px box, which hangs 9px
+       past its ink, so that end pays 9px to leave the same margin. */
+    padding: 7px calc(var(--gutter) - 9px) 7px var(--gutter);
     background: var(--surface);
     border-bottom: 1px solid var(--border);
   }
