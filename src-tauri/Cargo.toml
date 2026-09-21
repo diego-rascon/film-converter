@@ -1,0 +1,53 @@
+[package]
+name = "film-converter"
+version = "0.1.0"
+description = "Batch develop film negative scans"
+authors = ["Diego Rascón", "Adrián Rascón"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "film_converter_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+base64 = "0.23.1"
+rayon = "1"
+# Decoding + PNG/TIFF encoding. Default features pull in AVIF (ravif/dav1d),
+# which we do not need and which slows the build down considerably.
+image = { version = "0.25.10", default-features = false, features = [
+  "jpeg",
+  "png",
+  "tiff",
+  "bmp",
+  "webp",
+  "rayon",
+] }
+# `image`'s own JPEG encoder has no chroma-subsampling control; this one does,
+# so we can write 4:4:4 like the Python reference (PIL `subsampling=0`).
+jpeg-encoder = { version = "0.7", features = ["std"] }
+
+
+# Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true
+
+# Image decoding in debug builds is painfully slow without this.
+[profile.dev.package."*"]
+opt-level = 3

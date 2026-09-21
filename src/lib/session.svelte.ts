@@ -1,0 +1,325 @@
+import {
+  CARD_PREVIEW_EDGE,
+  buildPreview,
+  cancelBatch,
+  developBatch,
+  importPaths,
+} from "./api";
+import { settings } from "./settings.svelte";
+import type { BatchProgress, BatchReport, ImageItem } from "./types";
+
+/**
+ * How many previews to decode at once. Previews are full decodes of
+ * potentially very large scans, so this keeps memory and CPU in check while
+ * still using more than one core.
+ */
+const PREVIEW_CONCURRENCY = 4;
+
+/** A message shown in the status bar. */
+export interface Notice {
+  kind: "info" | "error" | "success";
+  text: string;
+}
+
+class Session {
+  images = $state<ImageItem[]>([]);
+  /** True while a develop run is in flight. */
+  developing = $state(false);
+  /** True while imported paths are being expanded. */
+  importing = $state(false);
+  /** Images finished in the current or most recent run. */
+  completed = $state(0);
+  notice = $state<Notice | null>(null);
+  /** Failures from the most recent run, for the details popover. */
+  failures = $state<BatchReport["failures"]>([]);
+
+  /** Index of the image open in the fullscreen viewer, or null. */
+  viewerIndex = $state<number | null>(null);
+
+  #previewQueue: string[] = [];
+  #previewActive = 0;
+  #requested = new Set<string>();
+
+  get total() {
+    return this.images.length;
+  }
+
+  get developed() {
+    return this.images.filter((i) => i.status === "done").length;
+  }
+
+  get failed() {
+    return this.images.filter((i) => i.status === "error").length;
+  }
+
+  get selected() {
+    return this.images.filter((i) => i.selected);
+  }
+
+  get hasSelection() {
+    return this.images.some((i) => i.selected);
+  }
+
+  get allSelected() {
+    return this.images.length > 0 && this.images.every((i) => i.selected);
+  }
+
+  get viewerImage(): ImageItem | null {
+    if (this.viewerIndex === null) return null;
+    return this.images[this.viewerIndex] ?? null;
+  }
+
+  /** Adds paths (files or folders) to the session, skipping duplicates. */
+  async add(paths: string[]) {
+    if (paths.length === 0) return;
+
+    this.importing = true;
+    try {
+      const found = await importPaths(paths);
+      const known = new Set(this.images.map((i) => i.path));
+      const fresh = found
+        .filter((f) => !known.has(f.path))
+        .map(
+          (f): ImageItem => ({
+            path: f.path,
+            name: f.name,
+            bytes: f.bytes,
+            status: "pending",
+            selected: false,
+            previewStatus: "idle",
+          }),
+        );
+
+      if (fresh.length === 0) {
+        this.notice =
+          found.length > 0
+            ? { kind: "info", text: "Those images are already loaded" }
+            : { kind: "error", text: "No supported images found" };
+        return;
+      }
+
+      this.images = [...this.images, ...fresh];
+      this.notice = {
+        kind: "info",
+        text: `Added ${fresh.length} ${plural(fresh.length, "image")}`,
+      };
+      this.queuePreviews(fresh.map((f) => f.path));
+    } catch (error) {
+      this.notice = { kind: "error", text: describe(error) };
+    } finally {
+      this.importing = false;
+    }
+  }
+
+  /** Asks for previews of `paths`, a few at a time. */
+  queuePreviews(paths: string[]) {
+    for (const path of paths) {
+      if (this.#requested.has(path)) continue;
+      this.#requested.add(path);
+      this.#previewQueue.push(path);
+    }
+    this.#pumpPreviews();
+  }
+
+  #pumpPreviews() {
+    while (this.#previewActive < PREVIEW_CONCURRENCY) {
+      const path = this.#previewQueue.shift();
+      if (!path) return;
+
+      const image = this.find(path);
+      // The image may have been removed while it sat in the queue.
+      if (!image) continue;
+
+      this.#previewActive += 1;
+      image.previewStatus = "loading";
+
+      buildPreview(path, CARD_PREVIEW_EDGE)
+        .then((preview) => {
+          const target = this.find(path);
+          if (!target) return;
+          target.original = preview.original;
+          target.developed = preview.developed;
+          target.width = preview.width;
+          target.height = preview.height;
+          target.previewStatus = "ready";
+        })
+        .catch(() => {
+          const target = this.find(path);
+          if (target) target.previewStatus = "error";
+        })
+        .finally(() => {
+          this.#previewActive -= 1;
+          this.#pumpPreviews();
+        });
+    }
+  }
+
+  find(path: string): ImageItem | undefined {
+    return this.images.find((i) => i.path === path);
+  }
+
+  remove(paths: string[]) {
+    const removing = new Set(paths);
+    if (removing.size === 0) return;
+
+    const survivor = this.images.filter((i) => !removing.has(i.path));
+    const removedCount = this.images.length - survivor.length;
+    this.images = survivor;
+    for (const path of removing) this.#requested.delete(path);
+
+    // Keep the viewer pointing at something sensible, or close it.
+    if (this.viewerIndex !== null) {
+      if (survivor.length === 0) this.viewerIndex = null;
+      else this.viewerIndex = Math.min(this.viewerIndex, survivor.length - 1);
+    }
+
+    if (removedCount > 0) {
+      this.notice = {
+        kind: "info",
+        text: `Removed ${removedCount} ${plural(removedCount, "image")}`,
+      };
+    }
+  }
+
+  removeSelected() {
+    this.remove(this.selected.map((i) => i.path));
+  }
+
+  clear() {
+    this.images = [];
+    this.viewerIndex = null;
+    this.completed = 0;
+    this.failures = [];
+    this.#requested.clear();
+    this.#previewQueue.length = 0;
+    this.notice = null;
+  }
+
+  toggleSelected(path: string) {
+    const image = this.find(path);
+    if (image) image.selected = !image.selected;
+  }
+
+  setAllSelected(value: boolean) {
+    for (const image of this.images) image.selected = value;
+  }
+
+  /** Opens the fullscreen viewer on `path`. */
+  openViewer(path: string) {
+    const index = this.images.findIndex((i) => i.path === path);
+    if (index >= 0) this.viewerIndex = index;
+  }
+
+  closeViewer() {
+    this.viewerIndex = null;
+  }
+
+  /** Moves the viewer by `step`, wrapping around the ends. */
+  stepViewer(step: number) {
+    if (this.viewerIndex === null || this.images.length === 0) return;
+    const count = this.images.length;
+    this.viewerIndex = (this.viewerIndex + step + count) % count;
+  }
+
+  /** Folds a per-image progress event into the session. */
+  applyProgress(progress: BatchProgress) {
+    const image = this.find(progress.path);
+    if (image) {
+      image.status = progress.error ? "error" : "done";
+      image.error = progress.error ?? undefined;
+      image.output = progress.output ?? undefined;
+    }
+    this.completed = progress.completed;
+  }
+
+  /**
+   * Develops every loaded image, or only the selected ones when a selection
+   * is active.
+   */
+  async develop() {
+    if (this.developing) return;
+
+    const targets = this.hasSelection ? this.selected : this.images;
+    if (targets.length === 0) {
+      this.notice = { kind: "error", text: "No images to develop" };
+      return;
+    }
+    if (!settings.directory.trim()) {
+      this.notice = { kind: "error", text: "Choose an output folder first" };
+      return;
+    }
+
+    for (const image of targets) {
+      image.status = "developing";
+      image.error = undefined;
+      image.output = undefined;
+    }
+
+    this.developing = true;
+    this.completed = 0;
+    this.failures = [];
+    this.notice = {
+      kind: "info",
+      text: `Developing ${targets.length} ${plural(targets.length, "image")}…`,
+    };
+
+    try {
+      const report = await developBatch(
+        targets.map((i) => i.path),
+        settings.output,
+      );
+      this.failures = report.failures;
+
+      // A cancelled run leaves untouched images still marked as developing.
+      for (const image of targets) {
+        if (image.status === "developing") image.status = "pending";
+      }
+
+      this.notice = summarise(report, targets.length);
+    } catch (error) {
+      for (const image of targets) {
+        if (image.status === "developing") image.status = "pending";
+      }
+      this.notice = { kind: "error", text: describe(error) };
+    } finally {
+      this.developing = false;
+    }
+  }
+
+  async cancel() {
+    if (!this.developing) return;
+    this.notice = { kind: "info", text: "Finishing the images in flight…" };
+    await cancelBatch();
+  }
+}
+
+function summarise(report: BatchReport, requested: number): Notice {
+  if (report.cancelled) {
+    return {
+      kind: "info",
+      text: `Cancelled — developed ${report.succeeded} of ${requested}`,
+    };
+  }
+  if (report.failed > 0) {
+    return {
+      kind: "error",
+      text: `Developed ${report.succeeded} of ${requested} — ${report.failed} failed`,
+    };
+  }
+  return {
+    kind: "success",
+    text: `Developed ${report.succeeded} ${plural(report.succeeded, "image")}`,
+  };
+}
+
+export function plural(count: number, word: string): string {
+  return count === 1 ? word : `${word}s`;
+}
+
+function describe(error: unknown): string {
+  if (typeof error === "string") return error;
+  if (error instanceof Error) return error.message;
+  return "Something went wrong";
+}
+
+export const session = new Session();
