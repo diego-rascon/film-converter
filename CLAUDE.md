@@ -149,6 +149,18 @@ the front end resets anything still marked `developing` back to `pending`.
   than appearing with one, so the toolbar never shifts under the pointer; properties
   needs exactly one image, the other two take any number. **Remove** is muted at rest
   and only turns red under the pointer, because it is on screen the whole time.
+- The status bar's left end is deliberately quiet: a muted count of the loaded
+  images and nothing else. Everything that used to sit there — the notice, the run
+  summary, the failed-image list — is now
+  [NoticePanel.svelte](src/lib/components/NoticePanel.svelte), a toast floating at the
+  bottom of `main` so a message can run as long as it likes and a failed run can unfold
+  its list under it. It dismisses itself after a few seconds, *except* for errors, for
+  runs that left failures, and for as long as a run is in flight — those wait to be
+  closed, because they are the ones with something to read. Since the panel is the only
+  place a failure reason appears, closing it is the user's choice, not a timer's. The
+  footer's right cluster is pushed over by `margin-left: auto` rather than the footer
+  being `space-between`: the count is absent before any image is loaded, and **Save…**
+  must not slide left when it is.
 - [ViewHeader.svelte](src/lib/components/ViewHeader.svelte) is the bar above the images
   in *both* views, and the only place select-all and the sort controls live — the toolbar
   deliberately carries neither. It reads `settings.viewMode` itself: in list view the sort

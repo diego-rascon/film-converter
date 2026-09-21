@@ -14,6 +14,7 @@
   import ImageCard from "$lib/components/ImageCard.svelte";
   import ImageRow from "$lib/components/ImageRow.svelte";
   import InfoModal from "$lib/components/InfoModal.svelte";
+  import NoticePanel from "$lib/components/NoticePanel.svelte";
   import ViewHeader from "$lib/components/ViewHeader.svelte";
   import StatusBar from "$lib/components/StatusBar.svelte";
   import Toolbar from "$lib/components/Toolbar.svelte";
@@ -241,6 +242,11 @@
         <span>Drop to add</span>
       </div>
     {/if}
+
+    <!-- Floats over the images rather than living in the status bar, so a
+         message can be as long as it needs to be and a failed run can unfold
+         its list under it. -->
+    <NoticePanel />
   </main>
 
   <StatusBar />

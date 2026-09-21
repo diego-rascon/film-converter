@@ -19,7 +19,7 @@ const PREVIEW_CONCURRENCY = 4;
 export type SortKey = "added" | "name" | "size";
 export type SortDirection = "asc" | "desc";
 
-/** A message shown in the status bar. */
+/** A message shown in the floating notice panel over the images. */
 export interface Notice {
   kind: "info" | "error" | "success";
   text: string;
@@ -34,7 +34,7 @@ class Session {
   /** Images finished in the current or most recent run. */
   completed = $state(0);
   notice = $state<Notice | null>(null);
-  /** Failures from the most recent run, for the details popover. */
+  /** Failures from the most recent run, for the notice panel to unfold. */
   failures = $state<BatchReport["failures"]>([]);
 
   /** Index of the image open in the fullscreen viewer, or null. */
