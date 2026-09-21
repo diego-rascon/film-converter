@@ -190,7 +190,13 @@
     align-items: center;
     gap: 12px;
     flex: none;
-    padding: 7px 12px;
+    /* The gutter lives on the bar, the way the titlebar's and the status
+       bar's do, rather than on the cluster inside it: a cluster padding
+       stacks with the bar's own and the icons end up a full bar padding
+       right of the line everything else is on. The first icon is a 16px
+       glyph centred in a 34px box, so the box starts 9px left of the ink
+       the eye lines up with the gutter. */
+    padding: 7px 12px 7px calc(var(--gutter) - 9px);
     background: var(--surface);
     border-bottom: 1px solid var(--border);
   }
@@ -217,12 +223,6 @@
 
   .right {
     justify-content: flex-end;
-  }
-
-  /* The first icon sits on the gutter: its 16px glyph is centred in a 34px
-     box, so the box starts 9px to the left of what the eye lines up. */
-  .left {
-    padding-left: calc(var(--gutter) - 9px);
   }
 
   /* Muted at rest like its neighbours — a toolbar that is always on screen
