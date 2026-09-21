@@ -11,14 +11,24 @@
   --text-muted: #6b6b73;
   --text-faint: #96969e;
 
-  --accent: #c2693a;
-  --accent-hover: #ab5b31;
+  --accent: #c75f29;
+  --accent-hover: #ab5021;
   --accent-text: #ffffff;
-  --accent-soft: rgba(194, 105, 58, 0.12);
+  --accent-soft: rgba(199, 95, 41, 0.12);
+  /* The accent as a *fill* under white text, which wants more light in it
+     than the same accent drawn as text on a white surface does. Kept above
+     3:1 against --accent-text; anything brighter starts to wash the label
+     out. Light mode only — dark mode's accent already fills well. */
+  --accent-solid: #e0682c;
+  --accent-solid-hover: #c95c24;
 
   --danger: #c0392f;
   --danger-soft: rgba(192, 57, 47, 0.1);
   --success: #2f7d4f;
+
+  /* Every other row in the list view. Kept as an overlay rather than a flat
+     colour so it darkens whatever it sits on without being a fourth surface. */
+  --stripe: rgba(0, 0, 0, 0.032);
 
   --overlay: rgba(24, 24, 27, 0.55);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.05);
@@ -31,6 +41,9 @@
 
   --header-height: 52px;
   --status-height: 56px;
+  /* The left edge everything lines up on: the brand in the titlebar, the
+     counts in the toolbar and status bar, and the images in either view. */
+  --gutter: 18px;
 
   color-scheme: light;
 }
@@ -46,14 +59,18 @@
   --text-muted: #9c9ca5;
   --text-faint: #6c6c76;
 
-  --accent: #d4794a;
-  --accent-hover: #e08a5c;
+  --accent: #e4773f;
+  --accent-hover: #ed8c5a;
   --accent-text: #1a1108;
-  --accent-soft: rgba(212, 121, 74, 0.16);
+  --accent-soft: rgba(228, 119, 63, 0.16);
+  --accent-solid: var(--accent);
+  --accent-solid-hover: var(--accent-hover);
 
   --danger: #e5675c;
   --danger-soft: rgba(229, 103, 92, 0.14);
   --success: #5cba84;
+
+  --stripe: rgba(255, 255, 255, 0.045);
 
   --overlay: rgba(0, 0, 0, 0.72);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
@@ -141,14 +158,14 @@ button {
 }
 
 .btn-primary {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--accent-solid);
+  border-color: var(--accent-solid);
   color: var(--accent-text);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: var(--accent-hover);
-  border-color: var(--accent-hover);
+  background: var(--accent-solid-hover);
+  border-color: var(--accent-solid-hover);
 }
 
 .btn-ghost {
@@ -270,6 +287,9 @@ input[type="checkbox"] {
   accent-color: var(--accent);
   width: 15px;
   height: 15px;
+  /* The UA margin would push the box 4px past whatever it is meant to line
+     up with — the gutter, in both image views. */
+  margin: 0;
   cursor: pointer;
 }
 

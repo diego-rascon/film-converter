@@ -17,6 +17,8 @@
     close: "M18 6 6 18M6 6l12 12",
     chevronLeft: "m15 18-6-6 6-6",
     chevronRight: "m9 18 6-6-6-6",
+    chevronUp: "m6 15 6-6 6 6",
+    chevronDown: "m6 9 6 6 6-6",
     trash: "M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6",
     folder:
       "M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z",

@@ -150,7 +150,7 @@
     gap: 16px;
     flex: none;
     height: var(--status-height);
-    padding: 0 12px 0 18px;
+    padding: 0 12px 0 var(--gutter);
     background: var(--surface);
     border-top: 1px solid var(--border);
   }

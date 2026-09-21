@@ -13,6 +13,8 @@ export interface ImageItem {
   path: string;
   name: string;
   bytes: number;
+  /** Position in the import order, which sorting can always fall back to. */
+  sequence: number;
   status: ImageStatus;
   selected: boolean;
   /** Set when developing failed. */

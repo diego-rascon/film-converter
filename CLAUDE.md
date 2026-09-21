@@ -32,8 +32,12 @@ is a byte-exact port** — see the invariant below before touching `processing.r
 
 State lives in two singleton classes using Svelte 5 runes, exported as instances:
 
-- [session.svelte.ts](src/lib/session.svelte.ts) — the loaded images, selection, viewer
-  index, batch progress, and the preview queue (4 decodes at a time).
+- [session.svelte.ts](src/lib/session.svelte.ts) — the loaded images, their order,
+  selection, viewer index, batch progress, and the preview queue (4 decodes at a time).
+  `images` is the one order the app has — the grid, the viewer's index and shift-click
+  ranges all read it — so `sortBy` reorders the array itself rather than handing the list
+  a second view of the same images. `ImageItem.sequence` keeps the import order
+  recoverable, which is what a third click on a column goes back to.
 - [settings.svelte.ts](src/lib/settings.svelte.ts) — output folder/format/quality plus
   theme and view mode, persisted to local storage. Nothing auto-saves: callers invoke
   `settings.save()` explicitly after a change. `directory` is not a setting the user
@@ -133,6 +137,43 @@ the front end resets anything still marked `developing` back to `pending`.
   resolved in JS: `settings.resolvedTheme` is what reaches the attribute, and a `matchMedia`
   listener repaints when the system flips mid-session. Surfaces are
   deliberately neutral grey so chrome does not bias how developed colours look.
+  Light mode carries two accents because the one colour has two jobs: `--accent` is the
+  accent drawn *as* text or a border on a white surface, and `--accent-solid` is the
+  accent *filled* under `--accent-text`, which wants more light in it. `.btn-primary`
+  (**Save…** and the drop zone's button) is the filled one. Dark mode points
+  `--accent-solid` back at `--accent`, whose lighter value already fills well.
+- [ViewHeader.svelte](src/lib/components/ViewHeader.svelte) is the bar above the images
+  in *both* views, and the only place select-all and the sort controls live — the toolbar
+  deliberately carries neither. It reads `settings.viewMode` itself: in list view the sort
+  controls double as column headings and take the column widths, in grid view they are
+  plain buttons. Its list columns and [ImageRow.svelte](src/lib/components/ImageRow.svelte)
+  have to agree: the widths are `--col-*` custom properties set on `.list` in
+  [+page.svelte](src/routes/+page.svelte), but the side padding is not, so both hard-code
+  the same `18px`/`20px`. A column added to one needs the same slot in the other.
+- The header sits *inside* the scroll container in both views so it can be `sticky`.
+  In grid view that puts it in the path of the backdrop click that clears the selection,
+  which is why that handler tests `event.target === event.currentTarget` rather than
+  having children stop propagation.
+- List rows are deliberately full-bleed — no gutter on `.list`, no gap, no radius — so
+  the zebra stripes run as continuous bands the way Finder's do. That is also what lets
+  the sticky header hide the rows passing under it, and what makes a run of selected
+  rows read as one block. The stripe is `--stripe`, an overlay rather than a fourth
+  surface colour, and its parity comes from the `striped` prop rather than
+  `:nth-child`, which the header would otherwise throw off by one.
+- `--gutter` is the one left margin in the app: the brand in the titlebar, the counts in
+  the toolbar and the status bar, the cards, the rows and the header checkbox all sit on
+  it, which is why the checkbox does not move when the view is switched. The toolbar
+  spends it as `calc(var(--gutter) - 12px)` on its count, because its ghost buttons hang
+  their boxes left of their labels. `input[type="checkbox"]` has its UA margin zeroed in
+  [app.css](src/app.css) for the same reason — it would otherwise sit 4px inside.
+- Popovers — the header's settings and menu, the toolbar's **Add** — are absolutely
+  positioned inside a `position: relative` host marked `data-popover`. Their owner closes
+  them on a window `pointerdown` whose target has no `[data-popover]` ancestor, and
+  swallows `Escape` in the *capture* phase so the same key does not also reach
+  [+page.svelte](src/routes/+page.svelte)'s shortcut handler and clear the selection.
+  Adding files goes through the toolbar's one **Add** menu (images or a folder); the
+  [DropZone](src/lib/components/DropZone.svelte) still offers both as separate buttons
+  because it has the room and nothing else to show.
 - Icons are stroked SVG paths in a single map inside
   [Icon.svelte](src/lib/components/Icon.svelte); add a path there rather than inlining SVG.
 - Drag and drop uses Tauri's `getCurrentWebview().onDragDropEvent`, not the HTML5 API —

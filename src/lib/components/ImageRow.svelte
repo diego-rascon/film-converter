@@ -5,13 +5,15 @@
 
   interface Props {
     image: ImageItem;
+    /** Every other row, so the eye can follow one across the columns. */
+    striped: boolean;
     showOriginal: boolean;
     onopen: () => void;
     ontoggleSelect: (event: MouseEvent) => void;
     onremove: () => void;
   }
 
-  let { image, showOriginal, onopen, ontoggleSelect, onremove }: Props =
+  let { image, striped, showOriginal, onopen, ontoggleSelect, onremove }: Props =
     $props();
 
   let source = $derived(showOriginal ? image.original : image.developed);
@@ -29,7 +31,7 @@
   }
 </script>
 
-<div class="row" class:selected={image.selected}>
+<div class="row" class:striped class:selected={image.selected}>
   <input
     type="checkbox"
     checked={image.selected}
@@ -50,16 +52,18 @@
 
     <span class="name" title={image.path}>{image.name}</span>
 
-    <span class="meta">
+    <span class="meta dims">
       {#if image.width && image.height}
         {image.width} × {image.height}
       {/if}
     </span>
 
-    <span class="meta">{formatBytes(image.bytes)}</span>
+    <span class="meta size">{formatBytes(image.bytes)}</span>
   </button>
 
-  <StatusChip {image} />
+  <span class="status">
+    <StatusChip {image} />
+  </span>
 
   <button
     class="icon-btn small"
@@ -76,9 +80,14 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 5px 10px 5px 12px;
-    border-radius: var(--radius-sm);
-    border: 1px solid transparent;
+    padding: 5px var(--gutter);
+  }
+
+  /* These three carry equal specificity, so source order is what decides:
+     a hovered stripe reads as hovered, and a selected row as selected
+     whether it is striped, hovered or both. */
+  .row.striped {
+    background: var(--stripe);
   }
 
   .row:hover {
@@ -87,7 +96,7 @@
 
   .row.selected {
     background: var(--accent-soft);
-    border-color: var(--accent);
+    box-shadow: inset 2px 0 0 var(--accent);
   }
 
   .open {
@@ -102,7 +111,7 @@
   .thumb {
     display: grid;
     place-items: center;
-    width: 52px;
+    width: var(--col-thumb, 52px);
     height: 38px;
     flex: none;
     border-radius: 4px;
@@ -148,21 +157,32 @@
 
   .meta {
     flex: none;
-    width: 92px;
+    width: var(--col-meta, 92px);
     font-size: 11.5px;
     font-variant-numeric: tabular-nums;
     color: var(--text-faint);
     text-align: right;
   }
 
+  /* Fixed so the chip lines up under the header rather than tracking its
+     own label, which changes width with the status. */
+  .status {
+    display: flex;
+    align-items: center;
+    flex: none;
+    width: var(--col-status, 104px);
+  }
+
   .icon-btn.small {
-    width: 28px;
+    width: var(--col-action, 28px);
     height: 28px;
   }
 
-  /* The metadata columns are the first thing to go when space is tight. */
+  /* The dimensions are the first thing to go when space is tight — at the
+     window's 720px minimum the file size still fits, and it is the column
+     the header can sort by. ListHeader drops it at the same width. */
   @media (max-width: 720px) {
-    .meta {
+    .dims {
       display: none;
     }
   }

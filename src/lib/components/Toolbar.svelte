@@ -14,7 +14,34 @@
     $props();
 
   let selectedCount = $derived(session.selected.length);
+
+  /** The one way in from the toolbar: images or a folder, behind one button. */
+  let addOpen = $state(false);
+
+  function choose(action: () => void) {
+    addOpen = false;
+    action();
+  }
+
+  /** Same popover etiquette as the header's menus: a press outside closes. */
+  function onwindowpointerdown(event: PointerEvent) {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest("[data-popover]")) return;
+    addOpen = false;
+  }
+
+  function onwindowkeydown(event: KeyboardEvent) {
+    if (event.key !== "Escape" || !addOpen) return;
+    // Swallowed here so Escape does not also clear the selection underneath.
+    event.stopPropagation();
+    addOpen = false;
+  }
 </script>
+
+<svelte:window
+  on:pointerdown={onwindowpointerdown}
+  on:keydown|capture={onwindowkeydown}
+/>
 
 <div class="toolbar">
   <div class="left">
@@ -26,28 +53,9 @@
       {/if}
     </span>
 
-    <div class="divider"></div>
-
-    <button class="btn btn-ghost" onclick={onpickFiles}>
-      <Icon name="plus" size={15} />
-      Add
-    </button>
-    <button class="btn btn-ghost" onclick={onpickFolder}>
-      <Icon name="folder" size={15} />
-      Folder
-    </button>
-
-    {#if session.total > 0}
-      <button
-        class="btn btn-ghost"
-        onclick={() => session.setAllSelected(!session.allSelected)}
-      >
-        <Icon name="check" size={15} />
-        {session.allSelected ? "Deselect all" : "Select all"}
-      </button>
-    {/if}
-
     {#if selectedCount > 0}
+      <div class="divider"></div>
+
       <button
         class="btn btn-ghost btn-danger"
         onclick={() => session.removeSelected()}
@@ -56,6 +64,36 @@
         Remove
       </button>
     {/if}
+  </div>
+
+  <div class="center">
+    <div class="popover-host" data-popover>
+      <button
+        class="btn btn-ghost add"
+        class:open={addOpen}
+        onclick={() => (addOpen = !addOpen)}
+        aria-expanded={addOpen}
+        aria-haspopup="menu"
+        title="Add scans"
+      >
+        <Icon name="plus" size={15} />
+        Add
+        <Icon name="chevronDown" size={13} />
+      </button>
+
+      {#if addOpen}
+        <div class="popover menu" role="menu">
+          <button role="menuitem" onclick={() => choose(onpickFiles)}>
+            <Icon name="image" size={15} />
+            Add images…
+          </button>
+          <button role="menuitem" onclick={() => choose(onpickFolder)}>
+            <Icon name="folder" size={15} />
+            Add folder…
+          </button>
+        </div>
+      {/if}
+    </div>
   </div>
 
   <div class="right">
@@ -115,7 +153,6 @@
   .toolbar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: 12px;
     flex: none;
     padding: 7px 12px;
@@ -124,6 +161,7 @@
   }
 
   .left,
+  .center,
   .right {
     display: flex;
     align-items: center;
@@ -131,11 +169,26 @@
     min-width: 0;
   }
 
+  /* Equal bases on the flanks are what keep Add on the window's centre line
+     rather than the centre of whatever is left over. */
+  .left,
+  .right {
+    flex: 1 1 0;
+  }
+
+  .center {
+    flex: none;
+  }
+
+  .right {
+    justify-content: flex-end;
+  }
+
   .count {
     font-size: 12.5px;
     font-weight: 500;
     white-space: nowrap;
-    padding-left: 4px;
+    padding-left: calc(var(--gutter) - 12px);
   }
 
   .dim {
@@ -197,10 +250,75 @@
     box-shadow: var(--shadow-sm);
   }
 
-  /* Below this the two clusters need their own lines. */
+  .add :global(svg:last-child) {
+    color: var(--text-faint);
+    margin-left: -2px;
+  }
+
+  .add.open {
+    background: var(--surface-sunken);
+  }
+
+  .popover-host {
+    position: relative;
+  }
+
+  .popover {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 40;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+    animation: drop 0.12s ease;
+  }
+
+  .popover.menu {
+    min-width: 176px;
+    padding: 5px;
+  }
+
+  .popover.menu button {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    text-align: left;
+    white-space: nowrap;
+    color: var(--text);
+  }
+
+  .popover.menu button:hover {
+    background: var(--surface-sunken);
+  }
+
+  .popover.menu button :global(svg) {
+    color: var(--text-faint);
+  }
+
+  @keyframes drop {
+    from {
+      opacity: 0;
+      transform: translate(-50%, -4px);
+    }
+  }
+
+  /* Below this the clusters need their own lines, and Add stops being
+     centred on anything — it just leads the row it lands on. */
   @media (max-width: 860px) {
     .toolbar {
       flex-wrap: wrap;
+    }
+
+    .left,
+    .right {
+      flex: 0 1 auto;
     }
 
     .size {

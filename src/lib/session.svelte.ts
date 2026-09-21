@@ -15,6 +15,10 @@ import type { BatchProgress, BatchReport, ImageItem } from "./types";
  */
 const PREVIEW_CONCURRENCY = 4;
 
+/** Which column the list is ordered by; `added` is the import order. */
+export type SortKey = "added" | "name" | "size";
+export type SortDirection = "asc" | "desc";
+
 /** A message shown in the status bar. */
 export interface Notice {
   kind: "info" | "error" | "success";
@@ -36,9 +40,15 @@ class Session {
   /** Index of the image open in the fullscreen viewer, or null. */
   viewerIndex = $state<number | null>(null);
 
+  /** Ordering of `images`, driven by the list header. */
+  sortKey = $state<SortKey>("added");
+  sortDirection = $state<SortDirection>("asc");
+
   #previewQueue: string[] = [];
   #previewActive = 0;
   #requested = new Set<string>();
+  /** Hands out `ImageItem.sequence`, so the import order stays recoverable. */
+  #nextSequence = 0;
 
   get total() {
     return this.images.length;
@@ -64,6 +74,11 @@ class Session {
     return this.images.length > 0 && this.images.every((i) => i.selected);
   }
 
+  /** Some but not all — the indeterminate state of the header checkbox. */
+  get partlySelected() {
+    return this.hasSelection && !this.allSelected;
+  }
+
   get viewerImage(): ImageItem | null {
     if (this.viewerIndex === null) return null;
     return this.images[this.viewerIndex] ?? null;
@@ -84,6 +99,7 @@ class Session {
             path: f.path,
             name: f.name,
             bytes: f.bytes,
+            sequence: this.#nextSequence++,
             status: "pending",
             selected: false,
             previewStatus: "idle",
@@ -99,6 +115,7 @@ class Session {
       }
 
       this.images = [...this.images, ...fresh];
+      this.#applySort();
       this.notice = {
         kind: "info",
         text: `Added ${fresh.length} ${plural(fresh.length, "image")}`,
@@ -192,6 +209,7 @@ class Session {
     this.failures = [];
     this.#requested.clear();
     this.#previewQueue.length = 0;
+    this.#nextSequence = 0;
     this.notice = null;
   }
 
@@ -202,6 +220,52 @@ class Session {
 
   setAllSelected(value: boolean) {
     for (const image of this.images) image.selected = value;
+  }
+
+  /**
+   * Cycles a column: ascending, descending, then back to the import order.
+   * The images array is the one order the app has — the grid, the viewer and
+   * shift-click ranges all read it — so sorting reorders it rather than
+   * building a second, list-only view of the same images.
+   */
+  sortBy(key: Exclude<SortKey, "added">) {
+    if (this.sortKey !== key) {
+      this.sortKey = key;
+      this.sortDirection = "asc";
+    } else if (this.sortDirection === "asc") {
+      this.sortDirection = "desc";
+    } else {
+      this.sortKey = "added";
+      this.sortDirection = "asc";
+    }
+    this.#applySort();
+  }
+
+  #applySort() {
+    const key = this.sortKey;
+    const direction = this.sortDirection === "desc" ? -1 : 1;
+    // The viewer addresses an image by index, so it has to be carried across.
+    const viewing = this.viewerImage?.path ?? null;
+
+    this.images = [...this.images].sort((a, b) => {
+      let order = 0;
+      if (key === "name") {
+        // Numeric collation so DSC_9 sorts before DSC_10.
+        order = a.name.localeCompare(b.name, undefined, {
+          numeric: true,
+          sensitivity: "base",
+        });
+      } else if (key === "size") {
+        order = a.bytes - b.bytes;
+      }
+      // Ties, and `added`, fall back to the import order.
+      return order !== 0 ? direction * order : a.sequence - b.sequence;
+    });
+
+    if (viewing !== null) {
+      const index = this.images.findIndex((i) => i.path === viewing);
+      if (index >= 0) this.viewerIndex = index;
+    }
   }
 
   /** Opens the fullscreen viewer on `path`. */

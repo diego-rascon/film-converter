@@ -12,6 +12,7 @@
   import DropZone from "$lib/components/DropZone.svelte";
   import ImageCard from "$lib/components/ImageCard.svelte";
   import ImageRow from "$lib/components/ImageRow.svelte";
+  import ViewHeader from "$lib/components/ViewHeader.svelte";
   import StatusBar from "$lib/components/StatusBar.svelte";
   import Toolbar from "$lib/components/Toolbar.svelte";
   import Viewer from "$lib/components/Viewer.svelte";
@@ -164,18 +165,18 @@
         onpickFolder={pickFolder}
       />
     {:else if settings.viewMode === "grid"}
-      <!-- Clicking the backdrop clears the selection. -->
+      <!-- Clicking the backdrop itself — not a card, not the header —
+           clears the selection. -->
       <div
         class="scroll"
-        onclick={() => session.setAllSelected(false)}
+        onclick={(event) => {
+          if (event.target === event.currentTarget) session.setAllSelected(false);
+        }}
         role="presentation"
       >
-        <div
-          class="grid"
-          style:--card-size="{settings.cardSize}px"
-          onclick={(event) => event.stopPropagation()}
-          role="presentation"
-        >
+        <ViewHeader />
+
+        <div class="grid" style:--card-size="{settings.cardSize}px">
           {#each session.images as image (image.path)}
             <ImageCard
               {image}
@@ -190,9 +191,11 @@
     {:else}
       <div class="scroll">
         <div class="list">
-          {#each session.images as image (image.path)}
+          <ViewHeader />
+          {#each session.images as image, index (image.path)}
             <ImageRow
               {image}
+              striped={index % 2 === 1}
               {showOriginal}
               onopen={() => session.openViewer(image.path)}
               ontoggleSelect={(event) => pick(image.path, event)}
@@ -257,15 +260,24 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(var(--card-size), 1fr));
     gap: 16px;
-    padding: 16px;
+    padding: 16px var(--gutter);
     align-content: start;
   }
 
   .list {
+    /* Column widths, shared by the header and the rows so the two stay on
+       one grid; both read them with a fallback of the same value. */
+    --col-thumb: 52px;
+    --col-meta: 92px;
+    --col-status: 104px;
+    --col-action: 28px;
+
     display: flex;
     flex-direction: column;
-    gap: 1px;
-    padding: 8px;
+    /* No gutter and no gap: the rows run edge to edge and butt up against
+       each other so the zebra stripes read as continuous bands. Each row
+       carries the gutter as its own padding instead. */
+    padding: 0 0 8px;
   }
 
   .booting {
