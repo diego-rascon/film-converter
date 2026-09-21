@@ -643,13 +643,19 @@
     color: var(--accent);
   }
 
+  /* The one inset in the viewer's body, and the gutter every floating
+     control in the stage is already on: the picture clears the window by
+     the same margin its own pods do, so the two line up on one frame.
+     Padding here rather than on the stage keeps the stage's box and the
+     picture's box the same rectangle, which is what `clampPan`, the wipe
+     and the wheel's zoom origin all measure against. */
   .body {
     flex: 1;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--gutter);
     min-height: 0;
-    padding: 14px;
+    padding: var(--gutter);
   }
 
   .stage {
@@ -659,11 +665,12 @@
     min-width: 0;
     display: grid;
     place-items: center;
+    /* Still clipped, so a zoomed picture stops at the header and at the
+       details panel rather than spilling over them. */
     overflow: hidden;
-    border-radius: var(--radius);
-    /* Translucent, so the letterboxing is the viewer's blurred backdrop;
-       the wash only deepens it under the picture. */
-    background: rgba(0, 0, 0, 0.22);
+    /* No background and no radius. The picture floats on the viewer's own
+       blurred backdrop, so the letterboxing around it is the blur itself
+       and there is no box for the eye to find an edge on. */
   }
 
   .stage.wiping {
@@ -719,7 +726,11 @@
      photograph and no surface token can be read against that. */
   .pod {
     position: absolute;
-    bottom: 12px;
+    /* Flush to the stage's corners, which the body's padding has already
+       put on `--gutter`: a pod is its own ink, so its edge lands on the
+       window's margin exactly and on the picture's, and the pager lines up
+       under the header's mode switch. */
+    bottom: 0;
     z-index: 2;
     display: flex;
     align-items: center;
@@ -740,11 +751,11 @@
   }
 
   .pager {
-    left: 12px;
+    left: 0;
   }
 
   .zoomer {
-    right: 12px;
+    right: 0;
   }
 
   /* An `.icon-btn` in all but its colours, which have to come off the glass
@@ -800,10 +811,10 @@
   /* Along the top: the pods have the bottom corners. */
   .labels {
     position: absolute;
-    inset: 12px 0 auto;
+    /* The pods' corners, so a tag's edge lines up with the pod below it. */
+    inset: 0 0 auto;
     display: flex;
     justify-content: space-between;
-    padding: 0 12px;
     pointer-events: none;
   }
 

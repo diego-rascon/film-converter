@@ -184,9 +184,11 @@ the front end resets anything still marked `developing` back to `pending`.
   with a `backdrop-filter`, so the picture sits on a blurred, darkened cast of the
   grid it was opened from rather than on a flat panel. Three things follow. The
   shell has to stay mounted behind it, which it does — `+page.svelte` renders the
-  viewer beside `main`, not instead of it. The stage cannot carry a surface colour
-  of its own: it is a wash of black over the same backdrop, so the letterboxing
-  around a photo *is* the blur. And the body's controls sit on a dark field in
+  viewer beside `main`, not instead of it. The stage carries no surface of its own —
+  no background and no radius — so the picture floats on that backdrop with
+  nothing drawn around it and the letterboxing beside a tall scan *is* the blur.
+  What keeps it off the window's edges is the body's `var(--gutter)` padding,
+  which is also the margin its own floating pods sit on. And the body's controls sit on a dark field in
   both themes, so the nav arrows and the loading message are light-on-dark rather
   than themed greys — only the header, footer and details panel are still
   surfaces. The scrim is `--viewer-backdrop`, set per theme because a light app
@@ -219,8 +221,15 @@ the front end resets anything still marked `developing` back to `pending`.
   stage bails on anything inside a `.pod`, which covers the gaps between the
   buttons as well as the buttons; five `stopPropagation`s would not. They also
   carry a hairline on top of the glass, because a letterboxed scan leaves them
-  sitting on the backdrop, where the glass has nothing to darken. Their
-  geometry is the mode switch's and the toolbar's — `var(--radius)` around 2px
+  sitting on the backdrop, where the glass has nothing to darken. They are
+  flush to the stage's corners rather than inset within it — the body's padding
+  is what holds them off the window — so a pod's edge is the picture's edge and
+  the pager lines up under the header's mode switch; the tags take the top
+  corners the same way. The padding belongs to the body and not to the stage
+  because `clampPan`, `setWipeFrom` and the wheel's zoom origin all measure the
+  stage's rect: padding there would leave the picture's box and the measured box
+  two different rectangles, and the divider would drift from the pointer.
+  Their geometry is the mode switch's and the toolbar's — `var(--radius)` around 2px
   of padding around `var(--radius-sm)` children — rather than a capsule of
   circles: a fully round end in this app means a status chip or a label, never
   a control.
