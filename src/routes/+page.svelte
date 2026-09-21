@@ -99,10 +99,15 @@
     if (typeof chosen === "string") await session.add([chosen]);
   }
 
-  /** Opens the enclosing folder with the file picked out. */
-  async function revealImage(path: string) {
+  /**
+   * Opens the enclosing folder with the files picked out. A whole selection
+   * goes in one call: the plugin shows them together rather than opening a
+   * window each.
+   */
+  async function reveal(paths: string | string[]) {
+    if (paths.length === 0) return;
     try {
-      await revealItemInDir(path);
+      await revealItemInDir(paths);
     } catch {
       session.notice = {
         kind: "error",
@@ -170,6 +175,8 @@
       ontoggleCompare={() => (showOriginal = !showOriginal)}
       onpickFiles={pickFiles}
       onpickFolder={pickFolder}
+      oninfo={() => (infoPath = session.selected[0]?.path ?? null)}
+      onreveal={() => reveal(session.selected.map((i) => i.path))}
     />
   {/if}
 
@@ -203,7 +210,7 @@
               onopen={() => session.openViewer(image.path)}
               ontoggleSelect={(event) => pick(image.path, event)}
               oninfo={() => (infoPath = image.path)}
-              onreveal={() => revealImage(image.path)}
+              onreveal={() => reveal(image.path)}
               onremove={() => session.remove([image.path])}
             />
           {/each}
@@ -221,7 +228,7 @@
               onopen={() => session.openViewer(image.path)}
               ontoggleSelect={(event) => pick(image.path, event)}
               oninfo={() => (infoPath = image.path)}
-              onreveal={() => revealImage(image.path)}
+              onreveal={() => reveal(image.path)}
               onremove={() => session.remove([image.path])}
             />
           {/each}

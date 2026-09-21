@@ -143,6 +143,12 @@ the front end resets anything still marked `developing` back to `pending`.
   accent *filled* under `--accent-text`, which wants more light in it. `.btn-primary`
   (**Save…** and the drop zone's button) is the filled one. Dark mode points
   `--accent-solid` back at `--accent`, whose lighter value already fills well.
+- The toolbar's left cluster is the selection's actions — properties, show in folder,
+  remove — the same three an image's own [ImageMenu](src/lib/components/ImageMenu.svelte)
+  carries, as icons. They are always there and go disabled without a selection rather
+  than appearing with one, so the toolbar never shifts under the pointer; properties
+  needs exactly one image, the other two take any number. **Remove** is muted at rest
+  and only turns red under the pointer, because it is on screen the whole time.
 - [ViewHeader.svelte](src/lib/components/ViewHeader.svelte) is the bar above the images
   in *both* views, and the only place select-all and the sort controls live — the toolbar
   deliberately carries neither. It reads `settings.viewMode` itself: in list view the sort
@@ -161,11 +167,12 @@ the front end resets anything still marked `developing` back to `pending`.
   rows read as one block. The stripe is `--stripe`, an overlay rather than a fourth
   surface colour, and its parity comes from the `striped` prop rather than
   `:nth-child`, which the header would otherwise throw off by one.
-- `--gutter` is the one left margin in the app: the brand in the titlebar, the counts in
-  the toolbar and the status bar, the cards, the rows and the header checkbox all sit on
-  it, which is why the checkbox does not move when the view is switched. The toolbar
-  spends it as `calc(var(--gutter) - 12px)` on its count, because its ghost buttons hang
-  their boxes left of their labels. `input[type="checkbox"]` has its UA margin zeroed in
+- `--gutter` is the one left margin in the app: the brand in the titlebar, the toolbar's
+  actions, the status bar's tally, the cards, the rows and the header checkbox all sit on
+  it, which is why the checkbox does not move when the view is switched. A cluster pays
+  for whatever its first control hangs left of its ink — the toolbar spends
+  `calc(var(--gutter) - 9px)`, half the difference between its 34px icon buttons and
+  their 16px glyphs. `input[type="checkbox"]` has its UA margin zeroed in
   [app.css](src/app.css) for the same reason — it would otherwise sit 4px inside.
 - Popovers — the header's settings and menu, the toolbar's **Add** — are absolutely
   positioned inside a `position: relative` host marked `data-popover`. Their owner closes

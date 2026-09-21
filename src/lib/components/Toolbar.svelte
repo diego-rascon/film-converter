@@ -8,12 +8,28 @@
     ontoggleCompare: () => void;
     onpickFiles: () => void;
     onpickFolder: () => void;
+    /** Properties of the one selected image. */
+    oninfo: () => void;
+    /** Shows every selected image in the file manager. */
+    onreveal: () => void;
   }
 
-  let { showOriginal, ontoggleCompare, onpickFiles, onpickFolder }: Props =
-    $props();
+  let {
+    showOriginal,
+    ontoggleCompare,
+    onpickFiles,
+    onpickFolder,
+    oninfo,
+    onreveal,
+  }: Props = $props();
 
   let selectedCount = $derived(session.selected.length);
+  /** The properties dialog is about one file, so it needs exactly one. */
+  let single = $derived(selectedCount === 1);
+
+  let subject = $derived(
+    `${selectedCount} ${plural(selectedCount, "image")}`,
+  );
 
   /** The one way in from the toolbar: images or a folder, behind one button. */
   let addOpen = $state(false);
@@ -44,26 +60,45 @@
 />
 
 <div class="toolbar">
+  <!-- The same three actions an image's own menu carries, aimed at the
+       selection. They stay put and go dim rather than appearing with a
+       selection, so nothing in the toolbar shifts under the pointer. -->
   <div class="left">
-    <span class="count">
-      {session.total}
-      {plural(session.total, "image")}
-      {#if selectedCount > 0}
-        <span class="dim">· {selectedCount} selected</span>
-      {/if}
-    </span>
+    <button
+      class="icon-btn"
+      disabled={!single}
+      onclick={oninfo}
+      aria-label="Properties"
+      title={single
+        ? "Properties"
+        : "Select one image to see its properties"}
+    >
+      <Icon name="info" size={16} />
+    </button>
 
-    {#if selectedCount > 0}
-      <div class="divider"></div>
+    <button
+      class="icon-btn"
+      disabled={selectedCount === 0}
+      onclick={onreveal}
+      aria-label="Show in folder"
+      title={selectedCount === 0
+        ? "Select images to show them in the file manager"
+        : `Show ${subject} in the file manager`}
+    >
+      <Icon name="folder" size={16} />
+    </button>
 
-      <button
-        class="btn btn-ghost btn-danger"
-        onclick={() => session.removeSelected()}
-      >
-        <Icon name="trash" size={15} />
-        Remove
-      </button>
-    {/if}
+    <button
+      class="icon-btn danger"
+      disabled={selectedCount === 0}
+      onclick={() => session.removeSelected()}
+      aria-label="Remove"
+      title={selectedCount === 0
+        ? "Select images to remove them"
+        : `Remove ${subject} from the session`}
+    >
+      <Icon name="trash" size={16} />
+    </button>
   </div>
 
   <div class="center">
@@ -184,23 +219,17 @@
     justify-content: flex-end;
   }
 
-  .count {
-    font-size: 12.5px;
-    font-weight: 500;
-    white-space: nowrap;
-    padding-left: calc(var(--gutter) - 12px);
+  /* The first icon sits on the gutter: its 16px glyph is centred in a 34px
+     box, so the box starts 9px to the left of what the eye lines up. */
+  .left {
+    padding-left: calc(var(--gutter) - 9px);
   }
 
-  .dim {
-    color: var(--text-faint);
-    font-weight: 400;
-  }
-
-  .divider {
-    width: 1px;
-    height: 20px;
-    margin: 0 6px;
-    background: var(--border);
+  /* Muted at rest like its neighbours — a toolbar that is always on screen
+     should not carry a red button — and red only under the pointer. */
+  .danger:hover:not(:disabled) {
+    background: var(--danger-soft);
+    color: var(--danger);
   }
 
   .btn-ghost.on {
