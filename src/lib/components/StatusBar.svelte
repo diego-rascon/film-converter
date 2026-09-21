@@ -1,12 +1,14 @@
 <script lang="ts">
+  import { open } from "@tauri-apps/plugin-dialog";
+  import { openPath } from "@tauri-apps/plugin-opener";
+
   import Icon from "./Icon.svelte";
   import { session, plural } from "$lib/session.svelte";
   import { settings } from "$lib/settings.svelte";
-  import { openPath } from "@tauri-apps/plugin-opener";
 
   let failuresOpen = $state(false);
 
-  /** Develop acts on the selection when there is one, otherwise everything. */
+  /** Saving acts on the selection when there is one, otherwise everything. */
   let targetCount = $derived(
     session.hasSelection ? session.selected.length : session.total,
   );
@@ -16,6 +18,25 @@
       ? (session.completed / targetCount) * 100
       : 0,
   );
+
+  /**
+   * Saving always asks where to put the files, so the destination is a
+   * decision made per run rather than a setting to remember to check. The
+   * last folder used seeds the dialog and is what "Show output" opens.
+   */
+  async function save() {
+    const chosen = await open({
+      directory: true,
+      multiple: false,
+      title: "Save developed images to",
+      defaultPath: settings.directory || undefined,
+    });
+    if (typeof chosen !== "string") return;
+
+    settings.directory = chosen;
+    settings.save();
+    await session.develop();
+  }
 
   async function revealOutput() {
     try {
@@ -106,11 +127,12 @@
       </button>
     {:else}
       <button
-        class="btn btn-primary develop"
-        onclick={() => session.develop()}
+        class="btn btn-primary save"
+        onclick={save}
         disabled={session.total === 0}
+        title="Choose a folder and write the developed images"
       >
-        Develop
+        Save…
         {#if session.hasSelection}
           <span class="badge">{targetCount}</span>
         {/if}
@@ -194,7 +216,7 @@
     color: var(--text-muted);
   }
 
-  .develop {
+  .save {
     height: 36px;
     padding: 0 20px;
     font-weight: 600;

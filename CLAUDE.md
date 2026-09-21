@@ -36,7 +36,9 @@ State lives in two singleton classes using Svelte 5 runes, exported as instances
   index, batch progress, and the preview queue (4 decodes at a time).
 - [settings.svelte.ts](src/lib/settings.svelte.ts) — output folder/format/quality plus
   theme and view mode, persisted to local storage. Nothing auto-saves: callers invoke
-  `settings.save()` explicitly after a change.
+  `settings.save()` explicitly after a change. `directory` is not a setting the user
+  edits: **Save…** asks for the destination on every run and stores the answer there,
+  where it seeds the next dialog and is what **Show output** opens.
 
 [api.ts](src/lib/api.ts) holds one thin typed wrapper per Rust command and nothing else;
 components never call `invoke` directly. [types.ts](src/lib/types.ts) mirrors the serde
