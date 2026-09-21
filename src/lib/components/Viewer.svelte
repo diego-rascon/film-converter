@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from "./Icon.svelte";
+  import WindowControls from "./WindowControls.svelte";
   import { FULL_PREVIEW_EDGE, buildPreview } from "$lib/api";
   import { session } from "$lib/session.svelte";
   import type { ImageItem } from "$lib/types";
@@ -107,13 +108,13 @@
 <svelte:window on:keydown={onkeydown} />
 
 <div class="viewer">
-  <header>
-    <div class="title">
-      <span class="name" title={image.path}>{image.name}</span>
-      <span class="position">
+  <header data-tauri-drag-region>
+    <div class="title" data-tauri-drag-region>
+      <span class="name" title={image.path} data-tauri-drag-region>{image.name}</span>
+      <span class="position" data-tauri-drag-region>
         {index + 1} of {total}
         {#if image.width && image.height}
-          <span class="dim">· {image.width} × {image.height}</span>
+          <span class="dim" data-tauri-drag-region>· {image.width} × {image.height}</span>
         {/if}
       </span>
     </div>
@@ -147,6 +148,8 @@
       >
         <Icon name="close" />
       </button>
+
+      <WindowControls />
     </div>
   </header>
 
@@ -251,7 +254,7 @@
     gap: 16px;
     flex: none;
     height: var(--header-height);
-    padding: 0 10px 0 18px;
+    padding: 0 0 0 18px;
     background: var(--surface);
     border-bottom: 1px solid var(--border);
   }

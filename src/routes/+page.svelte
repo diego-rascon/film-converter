@@ -15,6 +15,7 @@
   import StatusBar from "$lib/components/StatusBar.svelte";
   import Toolbar from "$lib/components/Toolbar.svelte";
   import Viewer from "$lib/components/Viewer.svelte";
+  import WindowResizeEdges from "$lib/components/WindowResizeEdges.svelte";
 
   import { session } from "$lib/session.svelte";
   import { settings } from "$lib/settings.svelte";
@@ -227,6 +228,8 @@
 {#if aboutOpen}
   <AboutModal onclose={() => (aboutOpen = false)} />
 {/if}
+
+<WindowResizeEdges />
 
 <style>
   .app {

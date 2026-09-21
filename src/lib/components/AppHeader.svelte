@@ -1,6 +1,7 @@
 <script lang="ts">
   import Icon from "./Icon.svelte";
   import SettingsPanel from "./SettingsPanel.svelte";
+  import WindowControls from "./WindowControls.svelte";
   import { settings } from "$lib/settings.svelte";
 
   interface Props {
@@ -39,7 +40,7 @@
   on:keydown|capture={onwindowkeydown}
 />
 
-<header>
+<header data-tauri-drag-region>
   <div class="brand">
     <Icon name="film" size={19} />
     <span>Film Converter</span>
@@ -102,6 +103,8 @@
         </div>
       {/if}
     </div>
+
+    <WindowControls />
   </div>
 </header>
 
@@ -113,12 +116,14 @@
     gap: 16px;
     height: var(--header-height);
     flex: none;
-    padding: 0 10px 0 18px;
+    padding: 0 0 0 18px;
     background: var(--surface);
     border-bottom: 1px solid var(--border);
   }
 
   .brand {
+    /* Lets a press on the title reach the header's drag region. */
+    pointer-events: none;
     display: flex;
     align-items: center;
     gap: 9px;

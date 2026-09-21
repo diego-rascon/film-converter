@@ -32,6 +32,10 @@
     external: "M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3",
     stop: "M6 6h12v12H6z",
     users: "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75",
+    // Titlebar glyphs, drawn on a 5..19 box so they read as ~9px at size 16.
+    windowMinimize: "M5 12h14",
+    windowMaximize: "M5 5h14v14H5z",
+    windowRestore: "M9 9V5h10v10h-4M5 9h10v10H5z",
   } as const;
 </script>
 

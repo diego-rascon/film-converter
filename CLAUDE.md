@@ -86,6 +86,31 @@ image source needs that CSP updated too.
 Cards request `CARD_PREVIEW_EDGE` (720px); the fullscreen viewer re-requests at
 `FULL_PREVIEW_EDGE` (2000px).
 
+## The custom window frame
+
+The window is created with `decorations: false`, so the app draws its own
+titlebar: [AppHeader.svelte](src/lib/components/AppHeader.svelte) is the titlebar,
+and [WindowControls.svelte](src/lib/components/WindowControls.svelte) holds the
+minimise/maximise/close buttons at its right end. Three consequences:
+
+- Anything that wants to drag the window needs `data-tauri-drag-region` on the
+  element the pointer actually lands on — Tauri checks the event target itself,
+  not its ancestors. Hence the attribute on the header *and* on the viewer's
+  title spans, and `pointer-events: none` on the brand.
+- [Viewer.svelte](src/lib/components/Viewer.svelte) is a fullscreen overlay that
+  covers the header, so it repeats the drag region and the window buttons.
+  Any new full-window overlay has to do the same or the window becomes
+  unmovable while it is open.
+- GTK stops handling the resize border on an undecorated window, so
+  [WindowResizeEdges.svelte](src/lib/components/WindowResizeEdges.svelte) draws
+  its own 4px grips and calls `startResizeDragging`. They sit at `z-index: 70`,
+  above the viewer (50) and the modals (60), which caps how high anything else
+  may go.
+
+The buttons, the drag region and the grips each need their own permission in
+[capabilities/default.json](src-tauri/capabilities/default.json) —
+`core:default` grants the *queries* (`is-maximized`) but none of the actions.
+
 ## Batch runs
 
 `develop_batch` fans out over rayon and emits a `develop://progress` event per image,
