@@ -1,6 +1,6 @@
 <script lang="ts">
   import Icon from "./Icon.svelte";
-  import { session } from "$lib/session.svelte";
+  import { session, plural } from "$lib/session.svelte";
   import { settings } from "$lib/settings.svelte";
 
   /**
@@ -8,8 +8,14 @@
    * In list view those controls double as the column headings, so they take
    * the column widths; in grid view there are no columns to head and they sit
    * next to each other as plain buttons.
+   *
+   * With a selection the bar switches jobs: the headings and the sort buttons
+   * give way to the tally, because that is what the user is looking at while
+   * picking, and sorting under a selection only moves the picks around. The
+   * checkbox stays put in both states — it is how the selection is cleared.
    */
   let list = $derived(settings.viewMode === "list");
+  let selectedCount = $derived(session.selected.length);
 </script>
 
 {#snippet sort(key: "name" | "size", label: string, variant: string)}
@@ -43,7 +49,12 @@
     title={session.allSelected ? "Deselect all" : "Select all"}
   />
 
-  {#if list}
+  {#if selectedCount > 0}
+    <span class="count">
+      {selectedCount}
+      {plural(selectedCount, "image")} selected
+    </span>
+  {:else if list}
     <div class="cols">
       <span class="thumb-slot"></span>
       {@render sort("name", "Name", "grow")}
@@ -72,7 +83,14 @@
        view is switched; a row carries it too, which is what puts the header
        and the rows on one column grid. The background is opaque so the
        stripes slide under it cleanly. */
-    padding: 7px var(--gutter);
+    padding: 0 var(--gutter);
+    /* Height rather than padding: grid view's buttons carry padding of their
+       own and list view's headings do not, so a padded bar comes out four
+       pixels shorter in one view than the other and the images jump when the
+       view is switched. A fixed height settles that and gives the tally room
+       to read at text size. */
+    height: 40px;
+    flex: none;
     background: var(--bg);
     border-bottom: 1px solid var(--border);
   }
@@ -105,6 +123,16 @@
     letter-spacing: 0.04em;
     text-transform: uppercase;
     color: var(--text-faint);
+    white-space: nowrap;
+  }
+
+  /* Not a heading but a statement about the selection, so it reads at text
+     size in the text colour rather than as another faint uppercase label. */
+  .count {
+    font-size: 12.5px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
     white-space: nowrap;
   }
 

@@ -157,6 +157,12 @@ the front end resets anything still marked `developing` back to `pending`.
   have to agree: the widths are `--col-*` custom properties set on `.list` in
   [+page.svelte](src/routes/+page.svelte), but the side padding is not, so both hard-code
   the same `18px`/`20px`. A column added to one needs the same slot in the other.
+  With a selection the bar swaps its right side for the tally: the headings, the sort
+  buttons and the list's status and action slots all give way to `N images selected`,
+  and only the checkbox stays, since it is how the selection is cleared. Its height is
+  fixed at `40px` rather than coming from padding — grid view's sort buttons carry
+  padding of their own and the list's headings do not, so a padded bar measures
+  differently in the two views and the images jump when the view is switched.
 - The header sits *inside* the scroll container in both views so it can be `sticky`.
   In grid view that puts it in the path of the backdrop click that clears the selection,
   which is why that handler tests `event.target === event.currentTarget` rather than
