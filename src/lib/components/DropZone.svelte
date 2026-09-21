@@ -42,7 +42,10 @@
     align-items: center;
     justify-content: center;
     gap: 4px;
-    margin: 12px;
+    /* The gutter, because this panel is the body's content while the session
+       is empty: the dashed frame stands where the first card will, so nothing
+       slides inwards the moment images arrive. */
+    margin: var(--gutter);
     padding: 40px 24px;
     border: 1.5px dashed var(--border-strong);
     border-radius: var(--radius-lg);

@@ -97,7 +97,9 @@
   .panel {
     position: absolute;
     left: 50%;
-    bottom: 14px;
+    /* Floats on the same line everything else is held off the window by; it
+       is the last thing above the status bar, so a stray inset shows. */
+    bottom: var(--gutter);
     z-index: 30;
     transform: translateX(-50%);
     width: max-content;

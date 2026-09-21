@@ -249,8 +249,10 @@ the front end resets anything still marked `developing` back to `pending`.
   controls double as column headings and take the column widths, in grid view they are
   plain buttons. Its list columns and [ImageRow.svelte](src/lib/components/ImageRow.svelte)
   have to agree: the widths are `--col-*` custom properties set on `.list` in
-  [+page.svelte](src/routes/+page.svelte), but the side padding is not, so both hard-code
-  the same `18px`/`20px`. A column added to one needs the same slot in the other.
+  [+page.svelte](src/routes/+page.svelte), while the side padding is written out in both
+  and has to stay identical — the gutter on the left, `calc(var(--gutter) - 6px)` on the
+  right for the menu button's hang. A column added to one needs the same slot in the
+  other, and a change to either padding needs the same change to the other.
   With a selection the bar swaps its right side for the tally: the headings, the sort
   buttons and the list's status and action slots all give way to `N images selected`,
   and only the checkbox stays, since it is how the selection is cleared. Its height is
@@ -267,16 +269,49 @@ the front end resets anything still marked `developing` back to `pending`.
   rows read as one block. The stripe is `--stripe`, an overlay rather than a fourth
   surface colour, and its parity comes from the `striped` prop rather than
   `:nth-child`, which the header would otherwise throw off by one.
-- `--gutter` is the one left margin in the app: the toolbar's view switch, the status
-  bar's tally, the cards, the rows and the header checkbox all sit on it, which is why
-  the checkbox does not move when the view is switched. The titlebar is the exception
-  — its title is centred on the *window*, absolutely positioned rather than a flex
-  item, so it stays put when the right cluster gains a button. What a bar spends on
-  the gutter depends on what its first control hangs outside its ink: a filled pill
-  like the view switch or the viewer's mode switch *is* its own edge and gets
-  `var(--gutter)` exactly, while a bare icon button hangs half the difference between
-  its box and its glyph, which is what the toolbar's far end pays as
-  `calc(var(--gutter) - 9px)` for a 16px glyph in a 34px box.
+- `--gutter` is the one margin in the app, on *both* ends of every bar: the toolbar's
+  view switch, the status bar's tally and its **Save…**, the cards, the rows and the
+  header checkbox all sit on it, which is why the checkbox does not move when the view
+  is switched. The titlebar is the exception — its title is centred on the *window*,
+  absolutely positioned rather than a flex item, so it stays put when the right cluster
+  gains a button. What a bar spends on the gutter depends on what the control at that
+  end hangs outside its ink, and it is the *ink* that lands on the line: a filled or
+  bordered button like the view switch, the viewer's mode switch or **Save…** *is* its
+  own edge and gets `var(--gutter)` exactly, while an icon in an oversized box hangs
+  half the difference between the two and the bar pays that back. That is the toolbar's
+  `calc(var(--gutter) - 9px)` for a 16px glyph in a 34px box, the list header's and the
+  rows' `calc(var(--gutter) - 6px)` for the same glyph in the 28px `--col-action` slot,
+  and the titlebars' 10px, which is also the floor — below it a corner resize grip
+  starts eating the close button's corner, so the header pays the remainder inside the
+  control instead (`.clear`'s `calc(var(--gutter) - 10px)` of left padding). A new
+  control at the end of a bar works out its own hang rather than copying a number.
+  The rule is about the window's edge, not about left and right, so a bar sitting on
+  the top or bottom edge owes it vertically too. The titlebar pays it without trying:
+  a 34px box centred in 52px puts a 17px glyph's ink ~18px off the top, the same place
+  its right end lands. The status bar has to be built around it. **Save…** is filled,
+  so its box *is* its ink on all four sides and it has nothing to pay back — which
+  fixes the bar's height at the button plus a gutter above and below, and makes the
+  *button* the variable. Hence `--action-height: 28px`, the same square a row's action
+  button takes rather than the toolbar's 34px, and
+  `--status-height: calc(var(--action-height) + 2 * var(--gutter))` for a 64px bar.
+  Deriving the height keeps the margin under Save from drifting when the button is
+  resized, and every button in the bar takes `--action-height` so whichever is
+  rightmost — **Save…**, or **Cancel** mid-run — lands on the line.
+
+  A tighter inset for this one bar has been tried and does not survive contact: the
+  bottom-right corner is where the drop frame's corner meets Save's, and two vertical
+  edges six pixels apart read as a mistake even though nothing else in the bar moved.
+  Anything spanning the window's width has the same problem at one end or the other,
+  which is why the footer's two ends are not allowed to differ. Shrink the button
+  before shortening the bar.
+  The same line carries the two dashed drop frames: [DropZone](src/lib/components/DropZone.svelte)'s
+  panel and `.drop-overlay` in [+page.svelte](src/routes/+page.svelte) are the same
+  offer in the empty and the loaded window, so they are outlined in the same place.
+  It also carries what the images end on: the grid's padding and the list's bottom
+  padding are both the gutter, so the last row stops the same distance above the
+  status bar in either view, and [NoticePanel](src/lib/components/NoticePanel.svelte)
+  floats on it as well. Inside a bar the number means nothing — the toolbar's 7px, a
+  popover's 5px, a button's own padding are all free.
   `input[type="checkbox"]` has its UA margin zeroed in [app.css](src/app.css) for the
   same reason — it would otherwise sit 4px inside.
 - Popovers — the header's settings and menu, the toolbar's **Add** — are absolutely

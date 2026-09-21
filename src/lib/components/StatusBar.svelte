@@ -97,7 +97,10 @@
     gap: 16px;
     flex: none;
     height: var(--status-height);
-    padding: 0 12px 0 var(--gutter);
+    /* Both ends on the gutter, and the height leaves the same above and below,
+       so Save clears the window by one number on all four sides and lands
+       under the drop frame's corner rather than beside it. */
+    padding: 0 var(--gutter);
     background: var(--surface);
     border-top: 1px solid var(--border);
   }
@@ -140,8 +143,15 @@
     color: var(--text-muted);
   }
 
+  /* One height for the whole cluster, so whichever button is rightmost at the
+     time — Save, or Cancel mid-run — clears the bottom of the window by the
+     same gutter it clears the right by. It is also what the bar's height is
+     derived from. */
+  .right .btn {
+    height: var(--action-height);
+  }
+
   .save {
-    height: 36px;
     padding: 0 20px;
     font-weight: 600;
   }

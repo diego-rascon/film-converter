@@ -82,8 +82,11 @@
     /* The same gutter in both views, so the checkbox does not move when the
        view is switched; a row carries it too, which is what puts the header
        and the rows on one column grid. The background is opaque so the
-       stripes slide under it cleanly. */
-    padding: 0 var(--gutter);
+       stripes slide under it cleanly. The far end pays back the slack in the
+       action slot for the toolbar's reason — a 16px glyph in the 28px box
+       hangs 6px past its ink — so a row's menu button lines up under the
+       toolbar's icons rather than 6px inside them. */
+    padding: 0 calc(var(--gutter) - 6px) 0 var(--gutter);
     /* Height rather than padding: grid view's buttons carry padding of their
        own and list view's headings do not, so a padded bar comes out four
        pixels shorter in one view than the other and the images jump when the

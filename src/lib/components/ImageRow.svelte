@@ -73,7 +73,10 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 5px var(--gutter);
+    /* The header's padding exactly, both ends — the checkbox on the gutter
+       and the menu button's 6px of slack paid back at the far end — or the
+       two stop sharing one column grid. */
+    padding: 5px calc(var(--gutter) - 6px) 5px var(--gutter);
   }
 
   /* These three carry equal specificity, so source order is what decides:

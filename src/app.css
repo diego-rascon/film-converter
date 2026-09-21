@@ -60,9 +60,24 @@
   --radius-lg: 14px;
 
   --header-height: 52px;
-  --status-height: 56px;
-  /* The left edge everything lines up on: the counts in the toolbar and
-     status bar, and the images in either view. */
+  /* Save is a filled pill, so its own edge is its ink on all four sides: it
+     cannot pay anything back the way a glyph in an oversized box does, and it
+     has to sit on the gutter like everything else — the drop frame's corner is
+     directly above it, and two vertical edges a few pixels apart read as a
+     mistake. That fixes the bar's height at this button plus a gutter above
+     and below, so the button is the smaller of the two: 28px, the same square
+     a row's action button takes, rather than the toolbar's 34px. */
+  --action-height: 28px;
+  /* Derived, not chosen: a hard-coded height would quietly change the margin
+     under Save every time the button's size was touched. The titlebar needs no
+     such arithmetic and keeps its 52px — what ends it is a glyph in an
+     oversized box, whose ink already lands ~18px off the top. */
+  --status-height: calc(var(--action-height) + 2 * var(--gutter));
+  /* The one margin between the window's edge and anything inside it, on all
+     four sides: the counts in the toolbar and status bar, the images in either
+     view, Save's own edge, and what the viewer's picture and pods sit on. What
+     lands on it is a control's ink — a filled button's box is its ink, while a
+     glyph in an oversized box makes its bar pay the difference back. */
   --gutter: 18px;
 
   color-scheme: light;

@@ -301,7 +301,11 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(var(--card-size), 1fr));
     gap: 16px;
-    padding: 16px var(--gutter);
+    /* The gutter on every side, not just the two the cards line up on: the
+       last row ends the same distance above the status bar as the first card
+       sits in from the window's left. The 16px gap between cards is a
+       separate measure and stays tighter than the margin around them. */
+    padding: var(--gutter);
     align-content: start;
   }
 
@@ -317,8 +321,10 @@
     flex-direction: column;
     /* No gutter and no gap: the rows run edge to edge and butt up against
        each other so the zebra stripes read as continuous bands. Each row
-       carries the gutter as its own padding instead. */
-    padding: 0 0 8px;
+       carries the gutter as its own padding instead. The bottom is the one
+       exception, and it is the grid's, so the last row ends the same distance
+       above the status bar in either view. */
+    padding: 0 0 var(--gutter);
   }
 
   .booting {
@@ -327,7 +333,10 @@
 
   .drop-overlay {
     position: absolute;
-    inset: 10px;
+    /* The same frame the empty session's drop zone draws, on the same line:
+       dragging onto a loaded window and dragging onto an empty one are the
+       same offer and should not be outlined in two different places. */
+    inset: var(--gutter);
     display: grid;
     place-items: center;
     border: 2px dashed var(--accent);
