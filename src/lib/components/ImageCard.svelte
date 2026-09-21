@@ -183,6 +183,19 @@
     transition: opacity 0.12s ease;
   }
 
+  /* The chip behind it is dark whatever the theme, so an unchecked box takes
+     its contrast from the chip rather than from the surface tokens, which
+     would vanish into it in dark mode. Checked keeps the accent fill. */
+  .pick input[type="checkbox"]:not(:checked) {
+    background-color: rgba(255, 255, 255, 0.16);
+    border-color: rgba(255, 255, 255, 0.8);
+  }
+
+  .pick input[type="checkbox"]:not(:checked):hover {
+    background-color: rgba(255, 255, 255, 0.28);
+    border-color: #fff;
+  }
+
   /* Hovering anywhere on the figure — the caption included — brings both
      overlays up, so they appear and disappear together. The menu reveals
      itself the same way; it owns its own opacity while it is open. */

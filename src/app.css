@@ -21,6 +21,11 @@
      out. Light mode only — dark mode's accent already fills well. */
   --accent-solid: #e0682c;
   --accent-solid-hover: #c95c24;
+  /* The check glyph a filled checkbox carries: the same path Icon.svelte
+     draws, stroked in --accent-text. A background image cannot read a custom
+     property at paint time, so the colour is baked in and each theme carries
+     its own copy. */
+  --tick: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m20 6-11 11-5-5'/%3E%3C/svg%3E");
 
   --danger: #c0392f;
   --danger-soft: rgba(192, 57, 47, 0.1);
@@ -65,6 +70,7 @@
   --accent-soft: rgba(228, 119, 63, 0.16);
   --accent-solid: var(--accent);
   --accent-solid-hover: var(--accent-hover);
+  --tick: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231a1108' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m20 6-11 11-5-5'/%3E%3C/svg%3E");
 
   --danger: #e5675c;
   --danger-soft: rgba(229, 103, 92, 0.14);
@@ -283,14 +289,66 @@ input[type="range"]::-moz-range-thumb {
   border: 2px solid var(--surface);
 }
 
+/* Drawn rather than left to the platform: `accent-color` tints the tick but
+   leaves the box the shape and the grey the toolkit picked, which is a
+   different radius and a different border from every other control here.
+   Both states are painted as backgrounds on the input itself — WebKit does
+   not reliably give a form control its ::before, and a tick that silently
+   fails to render is worse than a heavier rule. */
 input[type="checkbox"] {
-  accent-color: var(--accent);
-  width: 15px;
-  height: 15px;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  flex: none;
   /* The UA margin would push the box 4px past whatever it is meant to line
      up with — the gutter, in both image views. */
   margin: 0;
+  border: 1px solid var(--border-strong);
+  /* A hair under --radius-sm, which is drawn for 34px controls and starts to
+     read as a circle on a box this small. */
+  border-radius: 5px;
+  background: var(--surface) no-repeat center;
   cursor: pointer;
+  transition:
+    background-color 0.12s ease,
+    border-color 0.12s ease;
+}
+
+/* One step darker than the resting border, the way .btn answers a hover. */
+input[type="checkbox"]:hover:not(:disabled) {
+  border-color: var(--text-faint);
+}
+
+input[type="checkbox"]:checked {
+  background-color: var(--accent-solid);
+  background-image: var(--tick);
+  /* Sized to the padding box, so the glyph keeps the icon's own margins. */
+  background-size: contain;
+  border-color: var(--accent-solid);
+}
+
+/* Some but not all: a bar rather than a tick, and the same fill, since the
+   box is still reporting a selection. */
+input[type="checkbox"]:indeterminate {
+  background-color: var(--accent-solid);
+  background-image: linear-gradient(
+    var(--accent-text),
+    var(--accent-text)
+  );
+  background-size: 8px 2px;
+  border-color: var(--accent-solid);
+}
+
+input[type="checkbox"]:checked:hover:not(:disabled),
+input[type="checkbox"]:indeterminate:hover:not(:disabled) {
+  background-color: var(--accent-solid-hover);
+  border-color: var(--accent-solid-hover);
+}
+
+input[type="checkbox"]:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 /* Visible to screen readers only. */
