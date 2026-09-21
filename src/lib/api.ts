@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
   BatchReport,
+  ImageMetadata,
   ImportedImage,
   OutputSettings,
   Preview,
@@ -14,6 +15,11 @@ export function importPaths(paths: string[]): Promise<ImportedImage[]> {
 /** Decodes one scan and returns before/after thumbnails from a single read. */
 export function buildPreview(path: string, maxEdge: number): Promise<Preview> {
   return invoke("build_preview", { path, maxEdge });
+}
+
+/** One file's properties, read from its header without decoding it. */
+export function imageMetadata(path: string): Promise<ImageMetadata> {
+  return invoke("image_metadata", { path });
 }
 
 /** Develops `paths` and writes the results; progress arrives as events. */

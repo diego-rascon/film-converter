@@ -13,6 +13,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::import_paths,
             commands::build_preview,
+            commands::image_metadata,
             commands::develop_batch,
             commands::cancel_batch,
             commands::default_output_dir,

@@ -3,6 +3,7 @@
   import { listen } from "@tauri-apps/api/event";
   import { getCurrentWebview } from "@tauri-apps/api/webview";
   import { open } from "@tauri-apps/plugin-dialog";
+  import { revealItemInDir } from "@tauri-apps/plugin-opener";
 
   import { startupPaths } from "$lib/api";
 
@@ -12,6 +13,7 @@
   import DropZone from "$lib/components/DropZone.svelte";
   import ImageCard from "$lib/components/ImageCard.svelte";
   import ImageRow from "$lib/components/ImageRow.svelte";
+  import InfoModal from "$lib/components/InfoModal.svelte";
   import ViewHeader from "$lib/components/ViewHeader.svelte";
   import StatusBar from "$lib/components/StatusBar.svelte";
   import Toolbar from "$lib/components/Toolbar.svelte";
@@ -27,6 +29,10 @@
   let showOriginal = $state(false);
   let creditsOpen = $state(false);
   let aboutOpen = $state(false);
+  /** The image whose properties are on screen, by path. */
+  let infoPath = $state<string | null>(null);
+
+  let infoImage = $derived(infoPath === null ? null : session.find(infoPath));
 
   /** Anchor for shift-click range selection. */
   let lastPicked: string | null = null;
@@ -93,6 +99,18 @@
     if (typeof chosen === "string") await session.add([chosen]);
   }
 
+  /** Opens the enclosing folder with the file picked out. */
+  async function revealImage(path: string) {
+    try {
+      await revealItemInDir(path);
+    } catch {
+      session.notice = {
+        kind: "error",
+        text: "Could not open the file manager",
+      };
+    }
+  }
+
   /** Plain click picks one; shift extends from the last pick. */
   function pick(path: string, event: MouseEvent) {
     event.stopPropagation();
@@ -117,7 +135,8 @@
 
   function onkeydown(event: KeyboardEvent) {
     // The viewer and the dialogs run their own keyboard handling.
-    if (session.viewerIndex !== null || creditsOpen || aboutOpen) return;
+    if (session.viewerIndex !== null) return;
+    if (creditsOpen || aboutOpen || infoImage) return;
 
     const target = event.target as HTMLElement | null;
     if (target && /^(INPUT|SELECT|TEXTAREA)$/.test(target.tagName)) return;
@@ -183,6 +202,8 @@
               {showOriginal}
               onopen={() => session.openViewer(image.path)}
               ontoggleSelect={(event) => pick(image.path, event)}
+              oninfo={() => (infoPath = image.path)}
+              onreveal={() => revealImage(image.path)}
               onremove={() => session.remove([image.path])}
             />
           {/each}
@@ -199,6 +220,8 @@
               {showOriginal}
               onopen={() => session.openViewer(image.path)}
               ontoggleSelect={(event) => pick(image.path, event)}
+              oninfo={() => (infoPath = image.path)}
+              onreveal={() => revealImage(image.path)}
               onremove={() => session.remove([image.path])}
             />
           {/each}
@@ -222,6 +245,10 @@
     index={session.viewerIndex}
     total={session.total}
   />
+{/if}
+
+{#if infoImage}
+  <InfoModal image={infoImage} onclose={() => (infoPath = null)} />
 {/if}
 
 {#if creditsOpen}

@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from "./Icon.svelte";
+  import ImageMenu from "./ImageMenu.svelte";
   import StatusChip from "./StatusChip.svelte";
   import type { ImageItem } from "$lib/types";
 
@@ -9,11 +10,20 @@
     showOriginal: boolean;
     onopen: () => void;
     ontoggleSelect: (event: MouseEvent) => void;
+    oninfo: () => void;
+    onreveal: () => void;
     onremove: () => void;
   }
 
-  let { image, showOriginal, onopen, ontoggleSelect, onremove }: Props =
-    $props();
+  let {
+    image,
+    showOriginal,
+    onopen,
+    ontoggleSelect,
+    oninfo,
+    onreveal,
+    onremove,
+  }: Props = $props();
 
   let source = $derived(showOriginal ? image.original : image.developed);
 </script>
@@ -47,19 +57,15 @@
         aria-label="Select {image.name}"
       />
     </span>
-
-    <button
-      class="remove"
-      onclick={(event) => {
-        event.stopPropagation();
-        onremove();
-      }}
-      aria-label="Remove {image.name}"
-      title="Remove"
-    >
-      <Icon name="close" size={14} />
-    </button>
   </div>
+
+  <ImageMenu
+    variant="overlay"
+    name={image.name}
+    {oninfo}
+    {onreveal}
+    {onremove}
+  />
 
   <figcaption>
     <span class="name" title={image.path}>{image.name}</span>
@@ -69,6 +75,9 @@
 
 <style>
   figure {
+    /* The actions menu is a child of the figure rather than of the frame:
+       its popover would be clipped by the frame's `overflow: hidden`. */
+    position: relative;
     margin: 0;
     display: flex;
     flex-direction: column;
@@ -158,10 +167,10 @@
     pointer-events: none;
   }
 
-  .pick,
-  .remove {
+  .pick {
     position: absolute;
     top: 7px;
+    left: 7px;
     display: grid;
     place-items: center;
     width: 24px;
@@ -170,27 +179,20 @@
     background: rgba(0, 0, 0, 0.55);
     color: #fff;
     opacity: 0;
+    cursor: pointer;
     transition: opacity 0.12s ease;
   }
 
-  .pick {
-    left: 7px;
-    cursor: pointer;
-  }
-
-  .remove {
-    right: 7px;
-  }
-
-  .remove:hover {
-    background: var(--danger);
-  }
-
-  .frame:hover .pick,
-  .frame:hover .remove,
+  /* Hovering anywhere on the figure — the caption included — brings both
+     overlays up, so they appear and disappear together. The menu reveals
+     itself the same way; it owns its own opacity while it is open. */
+  figure:hover .pick,
   .pick:focus-within,
-  .remove:focus-visible,
   .pick.visible {
+    opacity: 1;
+  }
+
+  figure:hover :global(.image-menu.overlay) {
     opacity: 1;
   }
 

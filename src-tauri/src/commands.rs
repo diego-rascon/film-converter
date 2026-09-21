@@ -44,6 +44,26 @@ pub struct Preview {
     pub height: u32,
 }
 
+/// Everything the info dialog shows about one file: its header, what the
+/// filesystem records, and where it sits.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImageMetadata {
+    pub path: String,
+    pub name: String,
+    pub directory: String,
+    pub bytes: u64,
+    pub format: String,
+    pub width: u32,
+    pub height: u32,
+    pub color: String,
+    pub orientation: Option<String>,
+    /// Milliseconds since the epoch, so the front end can format them in the
+    /// user's own locale. `None` where the filesystem does not record one.
+    pub modified: Option<u64>,
+    pub created: Option<u64>,
+}
+
 /// What to write, and where.
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -140,6 +160,47 @@ pub async fn build_preview(path: String, max_edge: u32) -> Result<Preview, Strin
     })
     .await
     .map_err(|e| format!("preview failed: {e}"))?
+}
+
+/// Reads one scan's properties without decoding it.
+///
+/// The dimensions come from the header rather than from the preview, so this
+/// answers for an image whose preview failed or has not arrived yet.
+#[tauri::command]
+pub async fn image_metadata(path: String) -> Result<ImageMetadata, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let source = PathBuf::from(&path);
+        let probe = image_io::probe(&source)?;
+        let stat = std::fs::metadata(&source).ok();
+
+        Ok(ImageMetadata {
+            name: file_name(&source),
+            directory: source
+                .parent()
+                .map(|p| p.to_string_lossy().into_owned())
+                .unwrap_or_default(),
+            bytes: stat.as_ref().map(std::fs::Metadata::len).unwrap_or(0),
+            format: probe.format,
+            width: probe.width,
+            height: probe.height,
+            color: probe.color,
+            orientation: probe.orientation,
+            modified: stat.as_ref().and_then(|m| epoch_millis(m.modified().ok())),
+            created: stat.as_ref().and_then(|m| epoch_millis(m.created().ok())),
+            path,
+        })
+    })
+    .await
+    .map_err(|e| format!("metadata failed: {e}"))?
+}
+
+/// A `SystemTime` as milliseconds since the epoch, dropping anything the
+/// clock puts before it.
+fn epoch_millis(time: Option<std::time::SystemTime>) -> Option<u64> {
+    time?
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()
+        .map(|d| d.as_millis() as u64)
 }
 
 /// Develops every path in `paths` and writes the results to the output folder.

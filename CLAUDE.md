@@ -10,7 +10,7 @@ pnpm tauri dev                 # run the app (starts vite on :1420, then cargo)
 pnpm tauri build               # release bundle in src-tauri/target/release/bundle
 
 pnpm check                     # svelte-check (runs svelte-kit sync first)
-cargo test --manifest-path src-tauri/Cargo.toml            # 21 tests
+cargo test --manifest-path src-tauri/Cargo.toml            # 22 tests
 cargo test --manifest-path src-tauri/Cargo.toml percentile # a single test, by name substring
 ```
 
@@ -53,8 +53,9 @@ structs in `commands.rs`, which all use `rename_all = "camelCase"`.
 - [processing.rs](src-tauri/src/processing.rs) — invert, per-channel percentiles, stretch.
   Pure functions over `RgbImage`, no I/O.
 - [image_io.rs](src-tauri/src/image_io.rs) — decode, recursive folder walk, downscale,
-  encode, output naming.
-- [commands.rs](src-tauri/src/commands.rs) — the six `#[tauri::command]`s, all registered
+  encode, output naming, and `probe`, which reads a file's header for the properties
+  dialog without decoding its pixels.
+- [commands.rs](src-tauri/src/commands.rs) — the seven `#[tauri::command]`s, all registered
   in [lib.rs](src-tauri/src/lib.rs).
 
 Adding a command means touching four places: the function in `commands.rs`, the
@@ -171,6 +172,14 @@ the front end resets anything still marked `developing` back to `pending`.
   them on a window `pointerdown` whose target has no `[data-popover]` ancestor, and
   swallows `Escape` in the *capture* phase so the same key does not also reach
   [+page.svelte](src/routes/+page.svelte)'s shortcut handler and clear the selection.
+  [ImageMenu.svelte](src/lib/components/ImageMenu.svelte) — the three-dot menu that
+  carries a single image's actions in *both* views — follows the same etiquette with two
+  deliberate differences, because there is one of them per image and a session holds
+  hundreds: its window listeners are bound by an `$effect` only while it is open, and
+  "outside" means outside its own host rather than outside any `[data-popover]`, so
+  pressing one image's button closes the menu another image left open. It carries no
+  `data-popover` attribute for the same reason — opening it should dismiss the toolbar's.
+  On a card it has to sit *outside* `.frame`, whose `overflow: hidden` would clip it.
   Adding files goes through the toolbar's one **Add** menu (images or a folder); the
   [DropZone](src/lib/components/DropZone.svelte) still offers both as separate buttons
   because it has the room and nothing else to show.

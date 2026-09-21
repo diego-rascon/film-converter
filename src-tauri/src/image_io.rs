@@ -8,7 +8,10 @@ use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use image::codecs::png::{CompressionType, FilterType as PngFilter, PngEncoder};
 use image::codecs::tiff::TiffEncoder;
-use image::{DynamicImage, ImageDecoder, ImageEncoder, ImageReader, RgbImage};
+use image::metadata::Orientation;
+use image::{
+    DynamicImage, ExtendedColorType, ImageDecoder, ImageEncoder, ImageFormat, ImageReader, RgbImage,
+};
 use serde::{Deserialize, Serialize};
 
 /// Extensions we offer to import. Matches the Python file dialog's filter,
@@ -107,6 +110,96 @@ pub fn load_rgb(path: &Path) -> Result<RgbImage, String> {
     image.apply_orientation(orientation);
 
     Ok(image.into_rgb8())
+}
+
+/// What a file's header says about itself, read without decoding the pixels.
+pub struct Probe {
+    pub format: String,
+    pub width: u32,
+    pub height: u32,
+    pub color: String,
+    /// The EXIF rotation `load_rgb` will apply, described; `None` when the
+    /// file is upright or carries no tag.
+    pub orientation: Option<String>,
+}
+
+/// Reads the header of `path`: format, size, colour and orientation.
+///
+/// The dimensions are the ones the app works in, so a file tagged sideways is
+/// reported the way `load_rgb` will hand it over rather than the way it is
+/// stored.
+pub fn probe(path: &Path) -> Result<Probe, String> {
+    let reader = ImageReader::open(path)
+        .map_err(|e| format!("could not open: {e}"))?
+        .with_guessed_format()
+        .map_err(|e| format!("could not read: {e}"))?;
+
+    // `into_decoder` consumes the reader, so the format is taken first.
+    let format = reader.format();
+    let mut decoder = reader
+        .into_decoder()
+        .map_err(|e| format!("unsupported image: {e}"))?;
+
+    let orientation = decoder.orientation().unwrap_or(Orientation::NoTransforms);
+    let (mut width, mut height) = decoder.dimensions();
+    if matches!(
+        orientation,
+        Orientation::Rotate90
+            | Orientation::Rotate270
+            | Orientation::Rotate90FlipH
+            | Orientation::Rotate270FlipH
+    ) {
+        std::mem::swap(&mut width, &mut height);
+    }
+
+    Ok(Probe {
+        format: format.map_or_else(|| "Unknown".to_string(), describe_format),
+        width,
+        height,
+        color: describe_color(decoder.original_color_type()),
+        orientation: describe_orientation(orientation).map(str::to_string),
+    })
+}
+
+fn describe_format(format: ImageFormat) -> String {
+    match format {
+        ImageFormat::Jpeg => "JPEG".into(),
+        ImageFormat::Png => "PNG".into(),
+        ImageFormat::Tiff => "TIFF".into(),
+        ImageFormat::Bmp => "BMP".into(),
+        ImageFormat::WebP => "WebP".into(),
+        other => format!("{other:?}"),
+    }
+}
+
+/// The shape a file manager states it in: colour model plus bits per *pixel*,
+/// so a 16-bit-per-channel scan reads as the 48-bit file it is.
+fn describe_color(color: ExtendedColorType) -> String {
+    let model = match color {
+        ExtendedColorType::A8 => "Alpha",
+        ExtendedColorType::Cmyk8 | ExtendedColorType::Cmyk16 => "CMYK",
+        _ => match color.channel_count() {
+            1 => "Grayscale",
+            2 => "Grayscale + alpha",
+            3 => "RGB",
+            4 => "RGB + alpha",
+            _ => "Unknown",
+        },
+    };
+    format!("{model}, {}-bit", color.bits_per_pixel())
+}
+
+fn describe_orientation(orientation: Orientation) -> Option<&'static str> {
+    Some(match orientation {
+        Orientation::NoTransforms => return None,
+        Orientation::Rotate90 => "Rotated 90\u{b0} clockwise",
+        Orientation::Rotate180 => "Rotated 180\u{b0}",
+        Orientation::Rotate270 => "Rotated 90\u{b0} anticlockwise",
+        Orientation::FlipHorizontal => "Mirrored horizontally",
+        Orientation::FlipVertical => "Mirrored vertically",
+        Orientation::Rotate90FlipH => "Rotated 90\u{b0} clockwise and mirrored",
+        Orientation::Rotate270FlipH => "Rotated 90\u{b0} anticlockwise and mirrored",
+    })
 }
 
 /// Scales `img` down so its longest edge is at most `max_edge`. Images already
@@ -327,6 +420,28 @@ mod tests {
                 assert_eq!(read.as_raw(), img.as_raw(), "{format:?} is lossless");
             }
         }
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn probe_reads_the_header_and_rejects_a_broken_file() {
+        let dir = std::env::temp_dir().join(format!("fc-probe-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let img = RgbImage::from_fn(24, 10, |x, _| image::Rgb([(x * 10) as u8, 40, 90]));
+        let path = dir.join("scan.png");
+        save_image(&img, &path, OutputFormat::Png, 95).unwrap();
+
+        let facts = probe(&path).expect("probe");
+        assert_eq!(facts.format, "PNG");
+        assert_eq!((facts.width, facts.height), (24, 10));
+        assert_eq!(facts.color, "RGB, 24-bit");
+        assert!(facts.orientation.is_none(), "an untagged file is upright");
+
+        let broken = dir.join("broken.png");
+        std::fs::write(&broken, b"not actually a png").unwrap();
+        assert!(probe(&broken).is_err(), "a corrupt file must fail, not panic");
 
         std::fs::remove_dir_all(&dir).ok();
     }

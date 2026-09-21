@@ -1,6 +1,8 @@
 <script lang="ts">
   import Icon from "./Icon.svelte";
+  import ImageMenu from "./ImageMenu.svelte";
   import StatusChip from "./StatusChip.svelte";
+  import { formatBytes } from "$lib/session.svelte";
   import type { ImageItem } from "$lib/types";
 
   interface Props {
@@ -10,25 +12,23 @@
     showOriginal: boolean;
     onopen: () => void;
     ontoggleSelect: (event: MouseEvent) => void;
+    oninfo: () => void;
+    onreveal: () => void;
     onremove: () => void;
   }
 
-  let { image, striped, showOriginal, onopen, ontoggleSelect, onremove }: Props =
-    $props();
+  let {
+    image,
+    striped,
+    showOriginal,
+    onopen,
+    ontoggleSelect,
+    oninfo,
+    onreveal,
+    onremove,
+  }: Props = $props();
 
   let source = $derived(showOriginal ? image.original : image.developed);
-
-  function formatBytes(bytes: number): string {
-    if (bytes < 1024) return `${bytes} B`;
-    const units = ["KB", "MB", "GB"];
-    let value = bytes / 1024;
-    let unit = 0;
-    while (value >= 1024 && unit < units.length - 1) {
-      value /= 1024;
-      unit += 1;
-    }
-    return `${value.toFixed(value < 10 ? 1 : 0)} ${units[unit]}`;
-  }
 </script>
 
 <div class="row" class:striped class:selected={image.selected}>
@@ -65,14 +65,7 @@
     <StatusChip {image} />
   </span>
 
-  <button
-    class="icon-btn small"
-    onclick={onremove}
-    aria-label="Remove {image.name}"
-    title="Remove"
-  >
-    <Icon name="close" size={15} />
-  </button>
+  <ImageMenu name={image.name} {oninfo} {onreveal} {onremove} />
 </div>
 
 <style>
@@ -171,11 +164,6 @@
     align-items: center;
     flex: none;
     width: var(--col-status, 104px);
-  }
-
-  .icon-btn.small {
-    width: var(--col-action, 28px);
-    height: 28px;
   }
 
   /* The dimensions are the first thing to go when space is tight — at the
