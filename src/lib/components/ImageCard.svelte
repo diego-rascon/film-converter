@@ -158,7 +158,8 @@
     bottom: 8px;
     padding: 2px 7px;
     border-radius: 99px;
-    background: rgba(0, 0, 0, 0.62);
+    background: var(--glass);
+    backdrop-filter: var(--glass-blur);
     color: #fff;
     font-size: 10px;
     font-weight: 600;
@@ -176,14 +177,15 @@
     width: 24px;
     height: 24px;
     border-radius: var(--radius-sm);
-    background: rgba(0, 0, 0, 0.55);
+    background: var(--glass);
+    backdrop-filter: var(--glass-blur);
     color: #fff;
     opacity: 0;
     cursor: pointer;
     transition: opacity 0.12s ease;
   }
 
-  /* The chip behind it is dark whatever the theme, so an unchecked box takes
+  /* The glass behind it is dark whatever the theme, so an unchecked box takes
      its contrast from the chip rather than from the surface tokens, which
      would vanish into it in dark mode. Checked keeps the accent fill. */
   .pick input[type="checkbox"]:not(:checked) {

@@ -27,8 +27,33 @@
   let details = $state(false);
   /** Position of the wipe divider, 0-100. */
   let wipe = $state(50);
-  let dragging = $state(false);
   let stage = $state<HTMLDivElement | null>(null);
+
+  /**
+   * Zoom is a multiple of the fitted picture, so 1 is "fit to the stage" and
+   * there is nothing below it — the viewer never shows the scan smaller than
+   * the room it has. The pair is fetched at `FULL_PREVIEW_EDGE`, which runs
+   * out of detail somewhere around 4x on a large stage; 6 leaves a little
+   * headroom for pixel-peeping without pretending there is more.
+   */
+  const MAX_ZOOM = 6;
+  const ZOOM_STEP = 1.4;
+
+  let zoom = $state(1);
+  let panX = $state(0);
+  let panY = $state(0);
+  let zoomed = $derived(zoom > 1);
+
+  /**
+   * A drag is either the wipe divider or a pan, decided once on pointerdown:
+   * zoomed in, the stage is a thing you move; fitted, it is a thing you wipe.
+   * A pan remembers where it started so the picture tracks the pointer
+   * exactly rather than accumulating rounding per move.
+   */
+  type Drag =
+    | { kind: "wipe" }
+    | { kind: "pan"; fromX: number; fromY: number; panX: number; panY: number };
+  let drag = $state<Drag | null>(null);
 
   /** Higher-resolution pair for this image, once it has been fetched. */
   let sharp = $state<{ path: string; original: string; developed: string } | null>(
@@ -65,6 +90,67 @@
       ? sharp
       : { original: image.original, developed: image.developed },
   );
+  let ready = $derived(Boolean(pair.developed && pair.original));
+
+  // A new scan arrives fitted, not at wherever the last one was left.
+  $effect(() => {
+    void image.path;
+    resetZoom();
+  });
+
+  function resetZoom() {
+    zoom = 1;
+    panX = 0;
+    panY = 0;
+  }
+
+  /**
+   * How far the picture may be pushed before its own edge crosses the
+   * stage's. `object-fit: contain` means the picture is the largest box of
+   * its aspect that fits, so the overflow to pan across is measured on
+   * *that*, not on the stage — otherwise a letterboxed scan pans into its
+   * own empty margins.
+   */
+  function clampPan() {
+    if (!stage) return;
+    const box = stage.getBoundingClientRect();
+    const aspect =
+      image.width && image.height
+        ? image.width / image.height
+        : box.width / box.height;
+    const fittedWidth = Math.min(box.width, box.height * aspect);
+    const fittedHeight = Math.min(box.height, box.width / aspect);
+    const limitX = Math.max(0, (fittedWidth * zoom - box.width) / 2);
+    const limitY = Math.max(0, (fittedHeight * zoom - box.height) / 2);
+    panX = Math.min(limitX, Math.max(-limitX, panX));
+    panY = Math.min(limitY, Math.max(-limitY, panY));
+  }
+
+  // The stage changes size when the details panel opens or the window is
+  // resized, which can leave a zoomed picture outside the bounds it was
+  // clamped to. Re-clamping on resize keeps it from being stuck there.
+  $effect(() => {
+    if (!stage) return;
+    const observer = new ResizeObserver(() => clampPan());
+    observer.observe(stage);
+    return () => observer.disconnect();
+  });
+
+  /**
+   * Scales by `factor` about (`atX`, `atY`), given from the stage's centre —
+   * the origin the transform itself scales about. Keeping whatever sits
+   * under that point where it is means the pan has to absorb the difference,
+   * which is what lets the wheel zoom into the corner it is pointing at.
+   */
+  function zoomBy(factor: number, atX = 0, atY = 0) {
+    const next = Math.min(MAX_ZOOM, Math.max(1, zoom * factor));
+    if (next === zoom) return;
+    const ratio = next / zoom;
+    panX = atX - ratio * (atX - panX);
+    panY = atY - ratio * (atY - panY);
+    zoom = next;
+    clampPan();
+  }
 
   function setWipeFrom(clientX: number) {
     if (!stage) return;
@@ -74,19 +160,57 @@
   }
 
   function onpointerdown(event: PointerEvent) {
-    if (mode !== "wipe") return;
-    dragging = true;
+    const target = event.target as Element;
+    // A press that lands in a floating pod is that button's, not the
+    // stage's: without this it would also start a wipe or a pan underneath.
+    if (target.closest(".pod")) return;
+    // Zoomed in, the stage is a thing you move rather than a thing you wipe
+    // — except on the divider itself, which keeps its grip so a comparison
+    // can still be moved without first zooming back out.
+    if (mode === "wipe" && (!zoomed || target.closest(".divider"))) {
+      drag = { kind: "wipe" };
+      setWipeFrom(event.clientX);
+    } else if (zoomed) {
+      drag = {
+        kind: "pan",
+        fromX: event.clientX,
+        fromY: event.clientY,
+        panX,
+        panY,
+      };
+    } else {
+      return;
+    }
     (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-    setWipeFrom(event.clientX);
   }
 
   function onpointermove(event: PointerEvent) {
-    if (dragging) setWipeFrom(event.clientX);
+    if (!drag) return;
+    if (drag.kind === "wipe") {
+      setWipeFrom(event.clientX);
+    } else {
+      panX = drag.panX + (event.clientX - drag.fromX);
+      panY = drag.panY + (event.clientY - drag.fromY);
+      clampPan();
+    }
   }
 
   function onpointerup(event: PointerEvent) {
-    dragging = false;
+    drag = null;
     (event.currentTarget as HTMLElement).releasePointerCapture?.(event.pointerId);
+  }
+
+  function onwheel(event: WheelEvent) {
+    if (!stage || !ready) return;
+    // The stage never scrolls, so the wheel is free to mean zoom outright
+    // rather than waiting on a modifier.
+    event.preventDefault();
+    const box = stage.getBoundingClientRect();
+    zoomBy(
+      event.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP,
+      event.clientX - box.left - box.width / 2,
+      event.clientY - box.top - box.height / 2,
+    );
   }
 
   function onkeydown(event: KeyboardEvent) {
@@ -109,6 +233,20 @@
       case "i":
       case "I":
         details = !details;
+        break;
+      case "+":
+      case "=":
+        event.preventDefault();
+        zoomBy(ZOOM_STEP);
+        break;
+      case "-":
+      case "_":
+        event.preventDefault();
+        zoomBy(1 / ZOOM_STEP);
+        break;
+      case "0":
+        event.preventDefault();
+        resetZoom();
         break;
       case "Delete":
       case "Backspace":
@@ -202,39 +340,41 @@
   </header>
 
   <div class="body">
-    <button
-      class="nav left"
-      onclick={() => session.stepViewer(-1)}
-      disabled={total < 2}
-      aria-label="Previous image"
-      title="Previous (←)"
-    >
-      <Icon name="chevronLeft" size={22} />
-    </button>
-
     <div
       class="stage"
-      class:grabbing={dragging}
-      class:wiping={mode === "wipe"}
+      class:wiping={mode === "wipe" && !zoomed}
+      class:pannable={zoomed}
+      class:panning={drag?.kind === "pan"}
+      style:--zoom={zoom}
+      style:--pan-x="{panX}px"
+      style:--pan-y="{panY}px"
       bind:this={stage}
       {onpointerdown}
       {onpointermove}
       {onpointerup}
+      {onwheel}
       role="presentation"
     >
-      {#if pair.developed && pair.original}
+      {#if ready}
         <!-- The developed frame sits underneath; the original is clipped on
-             top, so the divider reveals the scan as it moves right. -->
-        <img class="layer" src={pair.developed} alt={image.name} />
+             top, so the divider reveals the scan as it moves right. The clip
+             is applied outside the zoom rather than in it, so that the
+             divider stays a 2px line on the stage however far in the picture
+             is pushed. -->
+        <div class="canvas">
+          <img class="layer" src={pair.developed} alt={image.name} />
+        </div>
 
         {#if mode !== "after"}
           <div
-            class="layer clip"
+            class="clip"
             style:clip-path={mode === "before"
               ? "none"
               : `inset(0 ${100 - wipe}% 0 0)`}
           >
-            <img src={pair.original} alt="{image.name}, before developing" />
+            <div class="canvas">
+              <img src={pair.original} alt="{image.name}, before developing" />
+            </div>
           </div>
         {/if}
 
@@ -261,17 +401,60 @@
           <p>Reading the scan…</p>
         </div>
       {/if}
-    </div>
 
-    <button
-      class="nav right"
-      onclick={() => session.stepViewer(1)}
-      disabled={total < 2}
-      aria-label="Next image"
-      title="Next (→)"
-    >
-      <Icon name="chevronRight" size={22} />
-    </button>
+      <!-- Both pods float in the stage's bottom corners rather than flanking
+           it, so the picture gets the body's whole width and the controls
+           are where the eye already is. They sit outside `.canvas`, so
+           zooming moves the picture under them and not them with it. The
+           stage's own pointerdown ignores anything that lands in one. -->
+      {#if total > 1}
+        <div class="pod pager">
+          <button
+            onclick={() => session.stepViewer(-1)}
+            aria-label="Previous image"
+            title="Previous (←)"
+          >
+            <Icon name="chevronLeft" size={20} />
+          </button>
+          <button
+            onclick={() => session.stepViewer(1)}
+            aria-label="Next image"
+            title="Next (→)"
+          >
+            <Icon name="chevronRight" size={20} />
+          </button>
+        </div>
+      {/if}
+
+      {#if ready}
+        <div class="pod zoomer">
+          <button
+            onclick={() => zoomBy(1 / ZOOM_STEP)}
+            disabled={!zoomed}
+            aria-label="Zoom out"
+            title="Zoom out (−)"
+          >
+            <Icon name="minus" size={18} />
+          </button>
+          <button
+            onclick={() => zoomBy(ZOOM_STEP)}
+            disabled={zoom >= MAX_ZOOM}
+            aria-label="Zoom in"
+            title="Zoom in (+)"
+          >
+            <Icon name="plus" size={18} />
+          </button>
+          <button
+            onclick={resetZoom}
+            disabled={!zoomed}
+            aria-label="Fit to window"
+            title="Fit to window (0)"
+          >
+            <Icon name="fit" size={17} />
+          </button>
+        </div>
+      {/if}
+    </div>
 
     {#if details}
       <aside class="details" aria-label="Details">
@@ -300,6 +483,8 @@
   <footer>
     <kbd>←</kbd><kbd>→</kbd> browse
     <span class="sep">·</span>
+    <kbd>+</kbd><kbd>−</kbd> zoom
+    <span class="sep">·</span>
     <kbd>B</kbd> before / after
     <span class="sep">·</span>
     <kbd>I</kbd> details
@@ -311,14 +496,27 @@
 </div>
 
 <style>
+  /* The viewer covers the app rather than replacing it, so the picture sits
+     on a blurred, darkened cast of the grid it was opened from. The plain
+     background is the fallback: where backdrop-filter is missing the same
+     rule has to still read as a dark scrim, so it carries more black. */
   .viewer {
     position: fixed;
     inset: 0;
     z-index: 50;
     display: flex;
     flex-direction: column;
-    background: var(--bg);
+    background: rgba(9, 9, 11, 0.9);
     animation: fade 0.13s ease;
+  }
+
+  @supports (backdrop-filter: blur(1px)) or
+    (-webkit-backdrop-filter: blur(1px)) {
+    .viewer {
+      background: var(--viewer-backdrop);
+      -webkit-backdrop-filter: blur(34px) saturate(1.3);
+      backdrop-filter: blur(34px) saturate(1.3);
+    }
   }
 
   header {
@@ -449,32 +647,9 @@
     flex: 1;
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 10px;
     min-height: 0;
     padding: 14px;
-  }
-
-  .nav {
-    display: grid;
-    place-items: center;
-    width: 42px;
-    height: 68px;
-    flex: none;
-    border-radius: var(--radius);
-    color: var(--text-muted);
-    transition:
-      background 0.12s ease,
-      color 0.12s ease;
-  }
-
-  .nav:hover:not(:disabled) {
-    background: var(--surface);
-    color: var(--text);
-  }
-
-  .nav:disabled {
-    opacity: 0.25;
-    cursor: default;
   }
 
   .stage {
@@ -486,47 +661,114 @@
     place-items: center;
     overflow: hidden;
     border-radius: var(--radius);
-    background: var(--surface-sunken);
-    /* A checkerboard reads as "nothing here" behind a letterboxed photo. */
-    background-image:
-      linear-gradient(45deg, var(--border) 25%, transparent 25%),
-      linear-gradient(-45deg, var(--border) 25%, transparent 25%),
-      linear-gradient(45deg, transparent 75%, var(--border) 75%),
-      linear-gradient(-45deg, transparent 75%, var(--border) 75%);
-    background-size: 18px 18px;
-    background-position:
-      0 0,
-      0 9px,
-      9px -9px,
-      -9px 0;
+    /* Translucent, so the letterboxing is the viewer's blurred backdrop;
+       the wash only deepens it under the picture. */
+    background: rgba(0, 0, 0, 0.22);
   }
 
   .stage.wiping {
     cursor: ew-resize;
   }
 
-  .stage.grabbing {
+  .stage.pannable {
+    cursor: grab;
+  }
+
+  .stage.panning {
     cursor: grabbing;
   }
 
-  .layer {
+  /* The one part of a zoomed stage that is still the wipe's, so the handle
+     stays a grip rather than becoming somewhere the picture pans from. */
+  .stage.pannable .divider {
+    pointer-events: auto;
+    cursor: ew-resize;
+  }
+
+  /* Zoom and pan live here rather than on the pictures themselves, so the
+     wipe's clip and the divider keep working in the stage's own
+     coordinates. Both copies of the picture carry the same transform, which
+     is why it reads the three custom properties off the stage instead of
+     being written twice. */
+  .canvas {
     position: absolute;
     inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
+    transform: translate(var(--pan-x), var(--pan-y)) scale(var(--zoom));
+    transform-origin: center;
+  }
+
+  .clip {
+    position: absolute;
+    inset: 0;
   }
 
   /* The clipped layer has to land on exactly the same pixels as the layer
      underneath, so its image is positioned the same way rather than laid
      out as a child -- a grid context resolves `height: 100%` against the
      row instead of the stage, and the two frames drift apart. */
+  .layer,
   .clip img {
     position: absolute;
     inset: 0;
     width: 100%;
     height: 100%;
     object-fit: contain;
+  }
+
+  /* The two floating clusters. Frosted, because what is behind them is the
+     photograph and no surface token can be read against that. */
+  .pod {
+    position: absolute;
+    bottom: 12px;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    /* The geometry of every other cluster of controls in the app — the mode
+       switch, the toolbar's — rather than a pill: 2px of padding around
+       children a step smaller than the box that holds them. */
+    padding: 2px;
+    border-radius: var(--radius);
+    background: var(--glass);
+    backdrop-filter: var(--glass-blur);
+    /* A letterboxed scan leaves a pod sitting on the backdrop instead of on
+       the picture, where the glass alone has nothing to darken. The hairline
+       is what gives it an edge on either. */
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.1),
+      0 2px 10px rgba(0, 0, 0, 0.3);
+  }
+
+  .pager {
+    left: 12px;
+  }
+
+  .zoomer {
+    right: 12px;
+  }
+
+  /* An `.icon-btn` in all but its colours, which have to come off the glass
+     rather than off the surface tokens. */
+  .pod button {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: var(--radius-sm);
+    color: rgba(255, 255, 255, 0.82);
+    transition:
+      background 0.12s ease,
+      color 0.12s ease;
+  }
+
+  .pod button:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.16);
+    color: #fff;
+  }
+
+  .pod button:disabled {
+    opacity: 0.35;
+    cursor: default;
   }
 
   .divider {
@@ -555,9 +797,10 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
   }
 
+  /* Along the top: the pods have the bottom corners. */
   .labels {
     position: absolute;
-    inset: auto 0 12px;
+    inset: 12px 0 auto;
     display: flex;
     justify-content: space-between;
     padding: 0 12px;
@@ -567,7 +810,8 @@
   .tag {
     padding: 3px 9px;
     border-radius: 99px;
-    background: rgba(0, 0, 0, 0.62);
+    background: var(--glass);
+    backdrop-filter: var(--glass-blur);
     color: #fff;
     font-size: 10.5px;
     font-weight: 600;
@@ -583,8 +827,6 @@
     display: flex;
     flex-direction: column;
     width: 272px;
-    /* The nav buttons hug the stage; the panel is its own thing. */
-    margin-left: 10px;
     height: 100%;
     flex: none;
     overflow: hidden;
@@ -636,7 +878,7 @@
     flex-direction: column;
     align-items: center;
     gap: 10px;
-    color: var(--text-faint);
+    color: rgba(255, 255, 255, 0.55);
     font-size: 13px;
   }
 
@@ -648,7 +890,7 @@
     width: 22px;
     height: 22px;
     border-radius: 50%;
-    border: 2px solid var(--border-strong);
+    border: 2px solid rgba(255, 255, 255, 0.22);
     border-top-color: var(--accent);
     animation: spin 0.7s linear infinite;
   }
@@ -707,10 +949,6 @@
   @media (max-width: 720px) {
     footer {
       display: none;
-    }
-
-    .nav {
-      width: 34px;
     }
   }
 </style>

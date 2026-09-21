@@ -36,6 +36,21 @@
   --stripe: rgba(0, 0, 0, 0.032);
 
   --overlay: rgba(24, 24, 27, 0.55);
+  /* What the fullscreen viewer lays over the blurred app behind it. It is a
+     black in both themes — a photo wants a dark surround whichever way the
+     chrome is painted — but a light app blurs to a much brighter field than
+     a dark one, so each theme needs its own amount of it. */
+  --viewer-backdrop: rgba(9, 9, 11, 0.74);
+
+  /* Anything that floats over a picture: a card's checkbox and menu button,
+     the viewer's before/after tags and its two control pods. None of them
+     can take their contrast from the surface tokens, because what is behind
+     them is a photograph — so they are all the same frosted black in both
+     themes. The blur does half the separating, which is why the fallback
+     below carries more black than the frosted values do. */
+  --glass: rgba(0, 0, 0, 0.6);
+  --glass-hover: rgba(0, 0, 0, 0.78);
+  --glass-blur: none;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
   --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.18), 0 4px 12px rgba(0, 0, 0, 0.08);
@@ -51,6 +66,14 @@
   --gutter: 18px;
 
   color-scheme: light;
+}
+
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  :root {
+    --glass: rgba(0, 0, 0, 0.42);
+    --glass-hover: rgba(0, 0, 0, 0.6);
+    --glass-blur: blur(16px) saturate(1.4);
+  }
 }
 
 :root[data-theme="dark"] {
@@ -79,6 +102,7 @@
   --stripe: rgba(255, 255, 255, 0.045);
 
   --overlay: rgba(0, 0, 0, 0.72);
+  --viewer-backdrop: rgba(9, 9, 11, 0.55);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45);
   --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.6);

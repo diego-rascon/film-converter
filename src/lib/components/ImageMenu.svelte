@@ -137,13 +137,14 @@
     width: 24px;
     height: 24px;
     border-radius: var(--radius-sm);
-    background: rgba(0, 0, 0, 0.55);
+    background: var(--glass);
+    backdrop-filter: var(--glass-blur);
     color: #fff;
   }
 
   .overlay .trigger:hover,
   .overlay.open .trigger {
-    background: rgba(0, 0, 0, 0.78);
+    background: var(--glass-hover);
   }
 
   /* List view: the same square as the remove button it replaced, on the

@@ -180,6 +180,50 @@ the front end resets anything still marked `developing` back to `pending`.
   720px minimum width the right end needs more than its half, and the name has to
   slide left rather than end up underneath it. Only the name shrinks — the flanks'
   `0` basis leaves them nothing to give.
+- The viewer does not paint over the app, it frosts it: `.viewer` is translucent
+  with a `backdrop-filter`, so the picture sits on a blurred, darkened cast of the
+  grid it was opened from rather than on a flat panel. Three things follow. The
+  shell has to stay mounted behind it, which it does — `+page.svelte` renders the
+  viewer beside `main`, not instead of it. The stage cannot carry a surface colour
+  of its own: it is a wash of black over the same backdrop, so the letterboxing
+  around a photo *is* the blur. And the body's controls sit on a dark field in
+  both themes, so the nav arrows and the loading message are light-on-dark rather
+  than themed greys — only the header, footer and details panel are still
+  surfaces. The scrim is `--viewer-backdrop`, set per theme because a light app
+  blurs to a far brighter field than a dark one; where `backdrop-filter` is
+  missing the rule falls back to a near-opaque black, so the viewer is never
+  see-through. Anything that floats *over a picture* is frosted the same way
+  from one set of tokens: `--glass`, `--glass-hover` and `--glass-blur` in
+  [app.css](src/app.css), used by a card's checkbox and menu button, the
+  viewer's before/after tags and its two control pods. They are not
+  theme-scoped — what is behind them is a photograph, not a surface — and the
+  `@supports` block that frosts them also *lowers* the black, because without
+  the blur the same alpha would not separate the chip from the picture. A new
+  control over an image takes those three tokens rather than its own rgba.
+- The viewer's stage carries its own zoom: `--zoom`/`--pan-x`/`--pan-y` are
+  set on `.stage` and read by `.canvas`, one of which wraps each of the two
+  pictures. The transform is deliberately *inside* the wipe's clip rather than
+  around it, so the clip and the divider keep working in the stage's
+  coordinates and the divider stays a 2px line however far the picture is
+  pushed. 1 is fit and there is nothing below it. A drag is a wipe or a pan
+  depending only on whether the picture is zoomed, decided once on
+  pointerdown — the one exception being the divider, which keeps its grip
+  while zoomed so a comparison can still be moved without zooming back out,
+  and is the only thing in the stage that turns its `pointer-events` back on.
+  `clampPan` measures the overflow on the *fitted picture*, not on the stage,
+  or a letterboxed scan pans into its own empty margins.
+- The stage's bottom corners belong to the two floating pods — paging on the
+  left, zoom on the right, the way GNOME's image viewer arranges them — which
+  is why the before/after tags moved to the top. The pods sit outside
+  `.canvas`, so zooming moves the picture under them. `onpointerdown` on the
+  stage bails on anything inside a `.pod`, which covers the gaps between the
+  buttons as well as the buttons; five `stopPropagation`s would not. They also
+  carry a hairline on top of the glass, because a letterboxed scan leaves them
+  sitting on the backdrop, where the glass has nothing to darken. Their
+  geometry is the mode switch's and the toolbar's — `var(--radius)` around 2px
+  of padding around `var(--radius-sm)` children — rather than a capsule of
+  circles: a fully round end in this app means a status chip or a label, never
+  a control.
 - **Details** opens a panel beside the picture instead of the properties dialog.
   It is a sidebar, not a modal: it stays open while the arrows move through the
   roll, `Escape` still closes the viewer, and the stage narrows rather than the
