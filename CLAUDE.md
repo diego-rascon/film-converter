@@ -107,7 +107,9 @@ minimise/maximise/close buttons at its right end. Three consequences:
   [WindowResizeEdges.svelte](src/lib/components/WindowResizeEdges.svelte) draws
   its own 4px grips and calls `startResizeDragging`. They sit at `z-index: 70`,
   above the viewer (50) and the modals (60), which caps how high anything else
-  may go.
+  may go. They also overlay the window's outermost pixels, so the headers keep a
+  10px gutter: a control flush to the edge would have its corner swallowed by a
+  grip.
 
 The buttons, the drag region and the grips each need their own permission in
 [capabilities/default.json](src-tauri/capabilities/default.json) —

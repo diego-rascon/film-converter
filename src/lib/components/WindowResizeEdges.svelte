@@ -69,12 +69,14 @@
     left: 0;
   }
 
+  /* Kept to the header's 10px gutter so the corner never eats a click meant
+     for the close button. */
   .nw,
   .ne,
   .sw,
   .se {
-    width: 12px;
-    height: 12px;
+    width: 10px;
+    height: 10px;
   }
 
   .nw {

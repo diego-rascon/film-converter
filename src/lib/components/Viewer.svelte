@@ -254,7 +254,7 @@
     gap: 16px;
     flex: none;
     height: var(--header-height);
-    padding: 0 0 0 18px;
+    padding: 0 10px 0 18px;
     background: var(--surface);
     border-bottom: 1px solid var(--border);
   }
