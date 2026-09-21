@@ -168,14 +168,14 @@
   <AppHeader
     oncredits={() => (creditsOpen = true)}
     onabout={() => (aboutOpen = true)}
+    onpickFiles={pickFiles}
+    onpickFolder={pickFolder}
   />
 
   {#if session.total > 0}
     <Toolbar
       {showOriginal}
       ontoggleCompare={() => (showOriginal = !showOriginal)}
-      onpickFiles={pickFiles}
-      onpickFolder={pickFolder}
       oninfo={() => (infoPath = session.selected[0]?.path ?? null)}
       onreveal={() => reveal(session.selected.map((i) => i.path))}
     />

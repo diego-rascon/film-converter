@@ -156,15 +156,33 @@
     font-weight: 600;
   }
 
+  .save {
+    position: relative;
+    overflow: visible;
+  }
+
+  /* A bubble on the button's top-right corner rather than a child in its row,
+     so the count comes and goes without changing the button's width. It hangs
+     7px outside the corner, well inside the gutter, and the ring in the bar's
+     own colour cuts it cleanly away from the fill beneath. */
   .badge {
-    display: inline-grid;
+    position: absolute;
+    top: -7px;
+    right: -7px;
+    display: grid;
     place-items: center;
-    min-width: 19px;
-    height: 19px;
+    min-width: 18px;
+    height: 18px;
     padding: 0 5px;
+    box-sizing: border-box;
     border-radius: 99px;
-    background: rgba(0, 0, 0, 0.18);
+    background: var(--text);
+    color: var(--surface);
+    box-shadow: 0 0 0 2px var(--surface);
     font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
     font-variant-numeric: tabular-nums;
+    pointer-events: none;
   }
 </style>

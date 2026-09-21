@@ -7,15 +7,19 @@
   interface Props {
     oncredits: () => void;
     onabout: () => void;
+    onpickFiles: () => void;
+    onpickFolder: () => void;
   }
 
-  let { oncredits, onabout }: Props = $props();
+  let { oncredits, onabout, onpickFiles, onpickFolder }: Props = $props();
 
   let menuOpen = $state(false);
   let settingsOpen = $state(false);
+  let addOpen = $state(false);
 
   function choose(action: () => void) {
     menuOpen = false;
+    addOpen = false;
     action();
   }
 
@@ -25,13 +29,15 @@
     if (target?.closest("[data-popover]")) return;
     menuOpen = false;
     settingsOpen = false;
+    addOpen = false;
   }
 
   function onwindowkeydown(event: KeyboardEvent) {
     if (event.key !== "Escape") return;
-    if (menuOpen || settingsOpen) event.stopPropagation();
+    if (menuOpen || settingsOpen || addOpen) event.stopPropagation();
     menuOpen = false;
     settingsOpen = false;
+    addOpen = false;
   }
 </script>
 
@@ -41,13 +47,44 @@
 />
 
 <header data-tauri-drag-region>
-  <!-- The session's own reset, at the far end from the window's buttons.
-       It sits in the titlebar rather than the toolbar because it acts on
-       the session itself, not on a selection or a view, and it is only
-       there when there is something to clear — nothing shifts when it
-       comes and goes, since the title is centred on the window and the
-       right cluster is pushed over by `margin-left: auto`. -->
+  <!-- Add and Clear act on the session itself, not on a selection or a view,
+       so they sit in the titlebar, and only when there is a session — nothing
+       shifts when they come and go, since the title is centred on the window
+       and the right cluster is pushed over by `margin-left: auto`. -->
   {#if session.total > 0}
+    <div class="lead">
+    <div class="popover-host" data-popover>
+      <button
+        class="btn btn-ghost add"
+        class:open={addOpen}
+        onclick={() => {
+          addOpen = !addOpen;
+          menuOpen = false;
+          settingsOpen = false;
+        }}
+        aria-expanded={addOpen}
+        aria-haspopup="menu"
+        title="Add scans"
+      >
+        <Icon name="plus" size={15} />
+        Add
+        <Icon name="chevronDown" size={13} />
+      </button>
+
+      {#if addOpen}
+        <div class="popover menu left" role="menu">
+          <button role="menuitem" onclick={() => choose(onpickFiles)}>
+            <Icon name="image" size={15} />
+            Add images…
+          </button>
+          <button role="menuitem" onclick={() => choose(onpickFolder)}>
+            <Icon name="folder" size={15} />
+            Add folder…
+          </button>
+        </div>
+      {/if}
+    </div>
+
     <button
       class="btn btn-ghost clear"
       onclick={() => session.clear()}
@@ -59,6 +96,7 @@
       <Icon name="reload" size={15} />
       Clear
     </button>
+    </div>
   {/if}
 
   <div class="brand">Film Converter</div>
@@ -71,6 +109,7 @@
         onclick={() => {
           settingsOpen = !settingsOpen;
           menuOpen = false;
+          addOpen = false;
         }}
         aria-label="Settings"
         aria-expanded={settingsOpen}
@@ -92,6 +131,7 @@
         onclick={() => {
           menuOpen = !menuOpen;
           settingsOpen = false;
+          addOpen = false;
         }}
         aria-label="Menu"
         aria-expanded={menuOpen}
@@ -152,12 +192,20 @@
     align-items: center;
     gap: 2px;
     /* Not `justify-content: flex-end` on the header, for the status bar's
-       reason: Clear is absent before any image is loaded, and the window's
+       reason: Add and Clear are absent before any image is loaded, and the window's
        buttons must not move when it appears. */
     margin-left: auto;
   }
 
-  .clear {
+  /* The toolbar's 4px between neighbouring buttons, not the header's 16px
+     between its clusters. */
+  .lead {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .add {
     /* The box keeps the header's 10px, which is what holds it clear of the
        resize grip, and pays the rest of the gutter as its own padding so
        the glyph still lands on the line the toolbar and the cards sit on. */
@@ -187,6 +235,21 @@
     border-radius: var(--radius);
     box-shadow: var(--shadow-lg);
     animation: drop 0.12s ease;
+  }
+
+  .popover.left {
+    left: 0;
+    right: auto;
+    white-space: nowrap;
+  }
+
+  .add :global(svg:last-child) {
+    color: var(--text-faint);
+    margin-left: -2px;
+  }
+
+  .add.open {
+    background: var(--surface-sunken);
   }
 
   .popover.wide {

@@ -6,8 +6,6 @@
   interface Props {
     showOriginal: boolean;
     ontoggleCompare: () => void;
-    onpickFiles: () => void;
-    onpickFolder: () => void;
     /** Properties of the one selected image. */
     oninfo: () => void;
     /** Shows every selected image in the file manager. */
@@ -17,8 +15,6 @@
   let {
     showOriginal,
     ontoggleCompare,
-    onpickFiles,
-    onpickFolder,
     oninfo,
     onreveal,
   }: Props = $props();
@@ -30,34 +26,7 @@
   let subject = $derived(
     `${selectedCount} ${plural(selectedCount, "image")}`,
   );
-
-  /** The one way in from the toolbar: images or a folder, behind one button. */
-  let addOpen = $state(false);
-
-  function choose(action: () => void) {
-    addOpen = false;
-    action();
-  }
-
-  /** Same popover etiquette as the header's menus: a press outside closes. */
-  function onwindowpointerdown(event: PointerEvent) {
-    const target = event.target as HTMLElement | null;
-    if (target?.closest("[data-popover]")) return;
-    addOpen = false;
-  }
-
-  function onwindowkeydown(event: KeyboardEvent) {
-    if (event.key !== "Escape" || !addOpen) return;
-    // Swallowed here so Escape does not also clear the selection underneath.
-    event.stopPropagation();
-    addOpen = false;
-  }
 </script>
-
-<svelte:window
-  on:pointerdown={onwindowpointerdown}
-  on:keydown|capture={onwindowkeydown}
-/>
 
 <div class="toolbar">
   <!-- How the images are shown, mirrored from the right end it used to sit
@@ -113,36 +82,6 @@
       <Icon name="compare" size={15} />
       {showOriginal ? "Before" : "After"}
     </button>
-  </div>
-
-  <div class="center">
-    <div class="popover-host" data-popover>
-      <button
-        class="btn btn-ghost add"
-        class:open={addOpen}
-        onclick={() => (addOpen = !addOpen)}
-        aria-expanded={addOpen}
-        aria-haspopup="menu"
-        title="Add scans"
-      >
-        <Icon name="plus" size={15} />
-        Add
-        <Icon name="chevronDown" size={13} />
-      </button>
-
-      {#if addOpen}
-        <div class="popover menu" role="menu">
-          <button role="menuitem" onclick={() => choose(onpickFiles)}>
-            <Icon name="image" size={15} />
-            Add images…
-          </button>
-          <button role="menuitem" onclick={() => choose(onpickFolder)}>
-            <Icon name="folder" size={15} />
-            Add folder…
-          </button>
-        </div>
-      {/if}
-    </div>
   </div>
 
   <!-- The same three actions an image's own menu carries, aimed at the
@@ -206,7 +145,6 @@
   }
 
   .left,
-  .center,
   .right {
     display: flex;
     align-items: center;
@@ -214,15 +152,9 @@
     min-width: 0;
   }
 
-  /* Equal bases on the flanks are what keep Add on the window's centre line
-     rather than the centre of whatever is left over. */
   .left,
   .right {
     flex: 1 1 0;
-  }
-
-  .center {
-    flex: none;
   }
 
   .right {
@@ -283,67 +215,7 @@
     box-shadow: var(--shadow-sm);
   }
 
-  .add :global(svg:last-child) {
-    color: var(--text-faint);
-    margin-left: -2px;
-  }
-
-  .add.open {
-    background: var(--surface-sunken);
-  }
-
-  .popover-host {
-    position: relative;
-  }
-
-  .popover {
-    position: absolute;
-    top: calc(100% + 6px);
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 40;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-lg);
-    animation: drop 0.12s ease;
-  }
-
-  .popover.menu {
-    min-width: 176px;
-    padding: 5px;
-  }
-
-  .popover.menu button {
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    width: 100%;
-    padding: 8px 10px;
-    border-radius: var(--radius-sm);
-    font-size: 13px;
-    text-align: left;
-    white-space: nowrap;
-    color: var(--text);
-  }
-
-  .popover.menu button:hover {
-    background: var(--surface-sunken);
-  }
-
-  .popover.menu button :global(svg) {
-    color: var(--text-faint);
-  }
-
-  @keyframes drop {
-    from {
-      opacity: 0;
-      transform: translate(-50%, -4px);
-    }
-  }
-
-  /* Below this the clusters need their own lines, and Add stops being
-     centred on anything — it just leads the row it lands on. */
+  /* Below this the clusters need their own lines. */
   @media (max-width: 860px) {
     .toolbar {
       flex-wrap: wrap;
