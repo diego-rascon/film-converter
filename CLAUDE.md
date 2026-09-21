@@ -185,13 +185,15 @@ the front end resets anything still marked `developing` back to `pending`.
   rows read as one block. The stripe is `--stripe`, an overlay rather than a fourth
   surface colour, and its parity comes from the `striped` prop rather than
   `:nth-child`, which the header would otherwise throw off by one.
-- `--gutter` is the one left margin in the app: the brand in the titlebar, the toolbar's
-  actions, the status bar's tally, the cards, the rows and the header checkbox all sit on
-  it, which is why the checkbox does not move when the view is switched. A cluster pays
-  for whatever its first control hangs left of its ink — the toolbar spends
-  `calc(var(--gutter) - 9px)`, half the difference between its 34px icon buttons and
-  their 16px glyphs. `input[type="checkbox"]` has its UA margin zeroed in
-  [app.css](src/app.css) for the same reason — it would otherwise sit 4px inside.
+- `--gutter` is the one left margin in the app: the toolbar's actions, the status bar's
+  tally, the cards, the rows and the header checkbox all sit on it, which is why the
+  checkbox does not move when the view is switched. The titlebar is the exception — its
+  title is centred on the *window*, absolutely positioned rather than a flex item, so it
+  stays put when the right cluster gains a button. A cluster pays for whatever its first
+  control hangs left of its ink — the toolbar spends `calc(var(--gutter) - 9px)`, half
+  the difference between its 34px icon buttons and their 16px glyphs.
+  `input[type="checkbox"]` has its UA margin zeroed in [app.css](src/app.css) for the
+  same reason — it would otherwise sit 4px inside.
 - Popovers — the header's settings and menu, the toolbar's **Add** — are absolutely
   positioned inside a `position: relative` host marked `data-popover`. Their owner closes
   them on a window `pointerdown` whose target has no `[data-popover]` ancestor, and

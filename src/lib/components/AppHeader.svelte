@@ -40,10 +40,7 @@
 />
 
 <header data-tauri-drag-region>
-  <div class="brand">
-    <Icon name="film" size={19} />
-    <span>Film Converter</span>
-  </div>
+  <div class="brand">Film Converter</div>
 
   <div class="actions">
     <div class="popover-host" data-popover>
@@ -100,31 +97,34 @@
 
 <style>
   header {
+    position: relative;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: 16px;
     height: var(--header-height);
     flex: none;
-    padding: 0 10px 0 var(--gutter);
+    padding: 0 10px;
     background: var(--surface);
     border-bottom: 1px solid var(--border);
   }
 
   .brand {
-    /* Lets a press on the title reach the header's drag region. */
+    /* Centred on the window rather than on the space the actions leave, so
+       it does not shift when a button is added to the right cluster.
+       pointer-events: none lets a press on the title reach the drag region. */
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
     pointer-events: none;
-    display: flex;
-    align-items: center;
-    gap: 9px;
+    max-width: 50%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
     font-size: 14px;
     font-weight: 600;
     letter-spacing: -0.01em;
     color: var(--text);
-  }
-
-  .brand :global(svg) {
-    color: var(--accent);
   }
 
   .actions {

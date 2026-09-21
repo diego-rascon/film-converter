@@ -46,8 +46,8 @@
 
   --header-height: 52px;
   --status-height: 56px;
-  /* The left edge everything lines up on: the brand in the titlebar, the
-     counts in the toolbar and status bar, and the images in either view. */
+  /* The left edge everything lines up on: the counts in the toolbar and
+     status bar, and the images in either view. */
   --gutter: 18px;
 
   color-scheme: light;
