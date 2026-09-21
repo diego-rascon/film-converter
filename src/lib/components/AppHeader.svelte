@@ -2,6 +2,7 @@
   import Icon from "./Icon.svelte";
   import SettingsPanel from "./SettingsPanel.svelte";
   import WindowControls from "./WindowControls.svelte";
+  import { session } from "$lib/session.svelte";
 
   interface Props {
     oncredits: () => void;
@@ -40,6 +41,26 @@
 />
 
 <header data-tauri-drag-region>
+  <!-- The session's own reset, at the far end from the window's buttons.
+       It sits in the titlebar rather than the toolbar because it acts on
+       the session itself, not on a selection or a view, and it is only
+       there when there is something to clear — nothing shifts when it
+       comes and goes, since the title is centred on the window and the
+       right cluster is pushed over by `margin-left: auto`. -->
+  {#if session.total > 0}
+    <button
+      class="btn btn-ghost clear"
+      onclick={() => session.clear()}
+      disabled={session.developing}
+      title={session.developing
+        ? "Cancel the run before clearing the session"
+        : "Remove every image and start again"}
+    >
+      <Icon name="reload" size={15} />
+      Clear
+    </button>
+  {/if}
+
   <div class="brand">Film Converter</div>
 
   <div class="actions">
@@ -100,7 +121,6 @@
     position: relative;
     display: flex;
     align-items: center;
-    justify-content: flex-end;
     gap: 16px;
     height: var(--header-height);
     flex: none;
@@ -131,6 +151,21 @@
     display: flex;
     align-items: center;
     gap: 2px;
+    /* Not `justify-content: flex-end` on the header, for the status bar's
+       reason: Clear is absent before any image is loaded, and the window's
+       buttons must not move when it appears. */
+    margin-left: auto;
+  }
+
+  .clear {
+    /* The box keeps the header's 10px, which is what holds it clear of the
+       resize grip, and pays the rest of the gutter as its own padding so
+       the glyph still lands on the line the toolbar and the cards sit on. */
+    padding: 0 10px 0 calc(var(--gutter) - 10px);
+  }
+
+  .clear :global(svg) {
+    color: var(--text-faint);
   }
 
   .icon-btn.active {

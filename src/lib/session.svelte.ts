@@ -202,7 +202,15 @@ class Session {
     this.remove(this.selected.map((i) => i.path));
   }
 
+  /**
+   * Empties the session back to the drop zone. The view preferences — the
+   * sort column, the view mode — are the user's and survive; only the roll
+   * goes. Previews already in flight resolve against an image that is no
+   * longer there and drop what they decoded.
+   */
   clear() {
+    const cleared = this.images.length;
+
     this.images = [];
     this.viewerIndex = null;
     this.completed = 0;
@@ -210,7 +218,11 @@ class Session {
     this.#requested.clear();
     this.#previewQueue.length = 0;
     this.#nextSequence = 0;
-    this.notice = null;
+    // Whatever the last notice was about went with the images, so the clear
+    // speaks for itself rather than leaving the previous run's summary up.
+    this.notice = cleared
+      ? { kind: "info", text: `Cleared ${cleared} ${plural(cleared, "image")}` }
+      : null;
   }
 
   toggleSelected(path: string) {
