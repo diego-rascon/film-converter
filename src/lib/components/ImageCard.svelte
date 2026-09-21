@@ -52,14 +52,14 @@
       <span class="badge">Before</span>
     {/if}
 
-    <span class="pick" class:visible={anySelected}>
-      <input
-        type="checkbox"
-        checked={image.selected}
-        onclick={ontoggleSelect}
-        aria-label="Select {image.name}"
-      />
-    </span>
+    <input
+      type="checkbox"
+      class="pick"
+      class:visible={anySelected}
+      checked={image.selected}
+      onclick={ontoggleSelect}
+      aria-label="Select {image.name}"
+    />
   </div>
 
   <figcaption>
@@ -167,34 +167,38 @@
     pointer-events: none;
   }
 
+  /* Floats directly on the picture rather than inside a glass container of
+     its own — a second rounded square around it never shared its radius or
+     its centre with the checkbox's own corners, which is what read as
+     inconsistent. Its shape is the one every checkbox in the app already
+     has (`input[type="checkbox"]` in app.css); only its position and its
+     unchecked colours are added here. */
   .pick {
     position: absolute;
-    top: 7px;
-    left: 7px;
-    display: grid;
-    place-items: center;
-    width: 24px;
-    height: 24px;
-    border-radius: var(--radius-sm);
-    background: var(--glass);
-    backdrop-filter: var(--glass-blur);
-    color: #fff;
+    top: 8px;
+    left: 8px;
     opacity: 0;
-    cursor: pointer;
-    transition: opacity 0.12s ease;
+    transition:
+      opacity 0.12s ease,
+      background-color 0.12s ease,
+      border-color 0.12s ease;
   }
 
-  /* The glass behind it is dark whatever the theme, so an unchecked box takes
-     its contrast from the chip rather than from the surface tokens, which
-     would vanish into it in dark mode. Checked keeps the accent fill. */
-  .pick input[type="checkbox"]:not(:checked) {
-    background-color: rgba(255, 255, 255, 0.16);
-    border-color: rgba(255, 255, 255, 0.8);
+  /* The same frosted background the badge and the viewer's glass use, rather
+     than a white fill of its own — it is what keeps this checkbox reading
+     as the same object as everything else that floats over a picture. A
+     bright white border read as a halo against it, so the outline is the
+     same soft hairline the viewer's pods draw instead. Checked keeps the
+     global accent fill and tick, unchanged. */
+  .pick:not(:checked) {
+    background-color: var(--glass);
+    backdrop-filter: var(--glass-blur);
+    border-color: rgba(255, 255, 255, 0.3);
   }
 
-  .pick input[type="checkbox"]:not(:checked):hover {
-    background-color: rgba(255, 255, 255, 0.28);
-    border-color: #fff;
+  .pick:not(:checked):hover:not(:disabled) {
+    background-color: var(--glass-hover);
+    border-color: rgba(255, 255, 255, 0.55);
   }
 
   /* Hovering anywhere on the figure — the caption included — brings the box
@@ -204,7 +208,7 @@
      its own opacity while it is open, so the pointer can leave the card
      without the popover's own button vanishing under it. */
   figure:hover .pick,
-  .pick:focus-within,
+  .pick:focus-visible,
   .pick.visible {
     opacity: 1;
   }
