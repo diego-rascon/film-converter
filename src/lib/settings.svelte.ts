@@ -4,7 +4,9 @@ import { defaultOutputDir } from "./api";
 const STORAGE_KEY = "film-converter.settings";
 
 export type ViewMode = "grid" | "list";
-export type Theme = "light" | "dark";
+/** `auto` follows the system; the other two override it. */
+export type Theme = "auto" | "light" | "dark";
+export type ResolvedTheme = Exclude<Theme, "auto">;
 
 interface Persisted {
   directory: string;
@@ -16,7 +18,7 @@ interface Persisted {
   cardSize: number;
 }
 
-function systemTheme(): Theme {
+function systemTheme(): ResolvedTheme {
   return window.matchMedia?.("(prefers-color-scheme: dark)").matches
     ? "dark"
     : "light";
@@ -33,7 +35,9 @@ class Settings {
   quality = $state(95);
   overwrite = $state(false);
 
-  theme = $state<Theme>("dark");
+  theme = $state<Theme>("auto");
+  /** Kept in state so `auto` repaints when the system flips mid-session. */
+  #systemTheme = $state<ResolvedTheme>("dark");
   viewMode = $state<ViewMode>("grid");
   /** Minimum width of a grid card, in pixels. */
   cardSize = $state(240);
@@ -46,6 +50,15 @@ class Settings {
       quality: this.quality,
       overwrite: this.overwrite,
     };
+  }
+
+  /**
+   * The theme actually painted. `app.css` carries no `prefers-color-scheme`
+   * query — dark is `:root[data-theme="dark"]` — so `auto` is resolved here
+   * rather than in CSS.
+   */
+  get resolvedTheme(): ResolvedTheme {
+    return this.theme === "auto" ? this.#systemTheme : this.theme;
   }
 
   /** Quality only means something for the lossy and compressed formats. */
@@ -64,12 +77,28 @@ class Settings {
     this.format = stored.format ?? this.format;
     this.quality = stored.quality ?? this.quality;
     this.overwrite = stored.overwrite ?? this.overwrite;
-    this.theme = stored.theme ?? systemTheme();
+    this.theme = stored.theme ?? this.theme;
     this.viewMode = stored.viewMode ?? this.viewMode;
     this.cardSize = stored.cardSize ?? this.cardSize;
 
     this.directory = stored.directory ?? (await defaultOutputDir());
+
+    this.#systemTheme = systemTheme();
+    this.#followSystemTheme();
     this.applyTheme();
+  }
+
+  /**
+   * Repaints on a system theme change while the preference is `auto`. The
+   * listener lives as long as the app does, so it is never torn down.
+   */
+  #followSystemTheme() {
+    window
+      .matchMedia?.("(prefers-color-scheme: dark)")
+      .addEventListener("change", (event) => {
+        this.#systemTheme = event.matches ? "dark" : "light";
+        if (this.theme === "auto") this.applyTheme();
+      });
   }
 
   save() {
@@ -90,11 +119,12 @@ class Settings {
   }
 
   applyTheme() {
-    document.documentElement.dataset.theme = this.theme;
+    document.documentElement.dataset.theme = this.resolvedTheme;
   }
 
-  toggleTheme() {
-    this.theme = this.theme === "dark" ? "light" : "dark";
+  /** Sets the preference and repaints; the caller still persists it. */
+  setTheme(theme: Theme) {
+    this.theme = theme;
     this.applyTheme();
   }
 }

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { settings } from "$lib/settings.svelte";
+  import type { Theme } from "$lib/settings.svelte";
   import type { OutputFormat } from "$lib/types";
 
   const formats: { value: OutputFormat; label: string; note: string }[] = [
@@ -8,9 +9,20 @@
     { value: "tiff", label: "TIFF", note: "Lossless, uncompressed" },
   ];
 
+  const themes: { value: Theme; label: string }[] = [
+    { value: "auto", label: "Auto" },
+    { value: "light", label: "Light" },
+    { value: "dark", label: "Dark" },
+  ];
+
   let activeFormat = $derived(
     formats.find((f) => f.value === settings.format) ?? formats[0],
   );
+
+  function chooseTheme(theme: Theme) {
+    settings.setTheme(theme);
+    settings.save();
+  }
 </script>
 
 <div class="panel">
@@ -57,6 +69,27 @@
       <em>Off: a numbered copy is written instead</em>
     </span>
   </label>
+
+  <div class="field appearance">
+    <span class="field-label" id="theme-label">Theme</span>
+    <div class="segmented" role="radiogroup" aria-labelledby="theme-label">
+      {#each themes as option (option.value)}
+        <button
+          role="radio"
+          aria-checked={settings.theme === option.value}
+          class:active={settings.theme === option.value}
+          onclick={() => chooseTheme(option.value)}
+        >
+          {option.label}
+        </button>
+      {/each}
+    </div>
+    {#if settings.theme === "auto"}
+      <p class="note">
+        Following the system — {settings.resolvedTheme} right now
+      </p>
+    {/if}
+  </div>
 </div>
 
 <style>
@@ -82,6 +115,42 @@
     margin: 6px 0 0;
     font-size: 11.5px;
     color: var(--text-faint);
+  }
+
+  /* Appearance is not an output setting, so it sits below a hairline. */
+  .appearance {
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .segmented {
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    border-radius: var(--radius-sm);
+    background: var(--surface-sunken);
+  }
+
+  .segmented button {
+    flex: 1;
+    padding: 6px 0;
+    border-radius: 5px;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--text-muted);
+    transition:
+      background 0.12s ease,
+      color 0.12s ease;
+  }
+
+  .segmented button:hover {
+    color: var(--text);
+  }
+
+  .segmented button.active {
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: var(--shadow-sm);
   }
 
   .toggle {

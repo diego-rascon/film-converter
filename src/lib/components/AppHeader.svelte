@@ -2,7 +2,6 @@
   import Icon from "./Icon.svelte";
   import SettingsPanel from "./SettingsPanel.svelte";
   import WindowControls from "./WindowControls.svelte";
-  import { settings } from "$lib/settings.svelte";
 
   interface Props {
     oncredits: () => void;
@@ -47,15 +46,6 @@
   </div>
 
   <div class="actions">
-    <button
-      class="icon-btn"
-      onclick={() => settings.toggleTheme()}
-      aria-label="Switch to {settings.theme === 'dark' ? 'light' : 'dark'} theme"
-      title="Switch to {settings.theme === 'dark' ? 'light' : 'dark'} theme"
-    >
-      <Icon name={settings.theme === "dark" ? "sun" : "moon"} />
-    </button>
-
     <div class="popover-host" data-popover>
       <button
         class="icon-btn"
@@ -64,9 +54,9 @@
           settingsOpen = !settingsOpen;
           menuOpen = false;
         }}
-        aria-label="Output settings"
+        aria-label="Settings"
         aria-expanded={settingsOpen}
-        title="Output settings"
+        title="Settings"
       >
         <Icon name="settings" />
       </button>

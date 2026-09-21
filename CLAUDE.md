@@ -126,7 +126,10 @@ the front end resets anything still marked `developing` back to `pending`.
   `createEventDispatcher` — components take callback props (`onopen`, `onremove`,
   `ontoggleSelect`).
 - Styling is plain CSS with the design tokens defined in [app.css](src/app.css); dark mode
-  is `:root[data-theme="dark"]`, set from `settings.applyTheme()`. Surfaces are
+  is `:root[data-theme="dark"]`, set from `settings.applyTheme()`. The theme preference is
+  `auto` by default, and `app.css` carries no `prefers-color-scheme` query, so `auto` is
+  resolved in JS: `settings.resolvedTheme` is what reaches the attribute, and a `matchMedia`
+  listener repaints when the system flips mid-session. Surfaces are
   deliberately neutral grey so chrome does not bias how developed colours look.
 - Icons are stroked SVG paths in a single map inside
   [Icon.svelte](src/lib/components/Icon.svelte); add a path there rather than inlining SVG.
