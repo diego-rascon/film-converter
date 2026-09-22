@@ -49,7 +49,7 @@
     <Icon name={maximized ? "windowRestore" : "windowMaximize"} size={16} />
   </button>
   <button
-    class="icon-btn close"
+    class="icon-btn danger"
     onclick={() => appWindow.close()}
     aria-label="Close window"
     title="Close window"
@@ -67,10 +67,5 @@
     margin-left: 6px;
     padding-left: 7px;
     border-left: 1px solid var(--border);
-  }
-
-  .close:hover {
-    background: var(--danger-soft);
-    color: var(--danger);
   }
 </style>

@@ -63,7 +63,7 @@
     padding: 24px;
     background: var(--overlay);
     backdrop-filter: blur(3px);
-    animation: fade 0.14s ease;
+    animation: fade-in 0.14s ease;
   }
 
   .scrim {
@@ -82,7 +82,7 @@
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-lg);
-    animation: rise 0.16s ease;
+    animation: dialog-in 0.16s ease;
   }
 
   .dialog:focus {
@@ -109,13 +109,9 @@
     overflow-y: auto;
   }
 
-  @keyframes fade {
-    from {
-      opacity: 0;
-    }
-  }
-
-  @keyframes rise {
+  /* The shared `rise-in` with a hair of scale on it, which reads as a
+     dialog coming forward rather than a toast sliding up. */
+  @keyframes dialog-in {
     from {
       opacity: 0;
       transform: translateY(6px) scale(0.99);

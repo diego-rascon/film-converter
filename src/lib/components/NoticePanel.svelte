@@ -43,74 +43,87 @@
 </script>
 
 {#if shown}
-  <div class="panel" role="status" aria-live="polite">
-    <div class="message">
-      {#if notice}
-        <span class="glyph {notice.kind}">
-          {#if notice.kind === "error"}
-            <Icon name="alert" size={15} />
-          {:else if notice.kind === "success"}
-            <Icon name="check" size={15} />
-          {:else}
-            <Icon name="info" size={15} />
-          {/if}
-        </span>
-        <span class="text">{notice.text}</span>
-      {:else}
-        <span class="glyph error"><Icon name="alert" size={15} /></span>
-        <span class="text">
-          {failures.length}
-          {plural(failures.length, "image")} failed
-        </span>
-      {/if}
+  <!-- A dock the panel is centred in, rather than the panel centring itself
+       with a transform: that transform would otherwise have to be restated
+       inside its entry animation, which is the shared one. -->
+  <div class="dock">
+    <div class="panel" role="status" aria-live="polite">
+      <div class="message">
+        {#if notice}
+          <span class="glyph {notice.kind}">
+            {#if notice.kind === "error"}
+              <Icon name="alert" size={15} />
+            {:else if notice.kind === "success"}
+              <Icon name="check" size={15} />
+            {:else}
+              <Icon name="info" size={15} />
+            {/if}
+          </span>
+          <span class="text">{notice.text}</span>
+        {:else}
+          <span class="glyph error"><Icon name="alert" size={15} /></span>
+          <span class="text">
+            {failures.length}
+            {plural(failures.length, "image")} failed
+          </span>
+        {/if}
 
-      {#if failures.length > 0}
-        <button
-          class="btn btn-ghost small"
-          aria-expanded={detailsOpen}
-          onclick={() => (detailsOpen = !detailsOpen)}
-        >
-          Details
-          <Icon name={detailsOpen ? "chevronDown" : "chevronUp"} size={13} />
+        {#if failures.length > 0}
+          <button
+            class="btn btn-ghost small"
+            aria-expanded={detailsOpen}
+            onclick={() => (detailsOpen = !detailsOpen)}
+          >
+            Details
+            <Icon name={detailsOpen ? "chevronDown" : "chevronUp"} size={13} />
+          </button>
+        {/if}
+
+        <button class="icon-btn small" onclick={dismiss} aria-label="Dismiss">
+          <Icon name="close" size={14} />
         </button>
+      </div>
+
+      {#if detailsOpen && failures.length > 0}
+        <ul class="failures">
+          {#each failures as failure (failure.path)}
+            <li>
+              <span class="failure-name">{failure.name}</span>
+              <span class="failure-error">{failure.error}</span>
+            </li>
+          {/each}
+        </ul>
       {/if}
-
-      <button class="icon-btn small" onclick={dismiss} aria-label="Dismiss">
-        <Icon name="close" size={14} />
-      </button>
     </div>
-
-    {#if detailsOpen && failures.length > 0}
-      <ul class="failures">
-        {#each failures as failure (failure.path)}
-          <li>
-            <span class="failure-name">{failure.name}</span>
-            <span class="failure-error">{failure.error}</span>
-          </li>
-        {/each}
-      </ul>
-    {/if}
   </div>
 {/if}
 
 <style>
-  .panel {
+  .dock {
     position: absolute;
-    left: 50%;
+    left: 0;
+    right: 0;
     /* Floats on the same line everything else is held off the window by; it
        is the last thing above the status bar, so a stray inset shows. */
     bottom: var(--gutter);
+    padding: 0 var(--gutter);
     z-index: 30;
-    transform: translateX(-50%);
-    width: max-content;
-    max-width: calc(100% - 2 * var(--gutter));
+    display: flex;
+    justify-content: center;
+    /* The dock spans the window; only the panel in it is a target. */
+    pointer-events: none;
+  }
+
+  .panel {
+    pointer-events: auto;
+    max-width: 100%;
     display: flex;
     flex-direction: column;
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-lg);
-    animation: rise 0.16s ease;
+    animation: rise-in 0.16s ease;
   }
 
   .message {
@@ -143,19 +156,6 @@
     text-overflow: ellipsis;
   }
 
-  .btn.small {
-    height: 26px;
-    padding: 0 9px;
-    font-size: 12px;
-    flex: none;
-  }
-
-  .icon-btn.small {
-    width: 26px;
-    height: 26px;
-    flex: none;
-  }
-
   .failures {
     margin: 0;
     padding: 6px;
@@ -186,12 +186,5 @@
   .failure-error {
     font-size: 11.5px;
     color: var(--danger);
-  }
-
-  @keyframes rise {
-    from {
-      opacity: 0;
-      transform: translate(-50%, 6px);
-    }
   }
 </style>

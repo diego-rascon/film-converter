@@ -28,15 +28,15 @@
 
     <dl>
       <div>
-        <dt>Clipping</dt>
+        <dt class="caps">Clipping</dt>
         <dd>0.5% shadows, 0.5% highlights, per channel</dd>
       </div>
       <div>
-        <dt>Reads</dt>
+        <dt class="caps">Reads</dt>
         <dd>JPEG, PNG, TIFF, BMP, WebP</dd>
       </div>
       <div>
-        <dt>Writes</dt>
+        <dt class="caps">Writes</dt>
         <dd>JPEG, PNG, TIFF</dd>
       </div>
     </dl>
@@ -94,12 +94,9 @@
     gap: 12px;
   }
 
+  /* `.caps` in the markup carries the type; this is the optical nudge
+     that lands it on the value's baseline. */
   dt {
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--text-faint);
     padding-top: 1px;
   }
 

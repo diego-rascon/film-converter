@@ -152,13 +152,11 @@
   }
 
   .save {
+    position: relative;
+    /* The corner bubble hangs outside the button's box. */
+    overflow: visible;
     padding: 0 20px;
     font-weight: 600;
-  }
-
-  .save {
-    position: relative;
-    overflow: visible;
   }
 
   /* A bubble on the button's top-right corner rather than a child in its row,

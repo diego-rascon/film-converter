@@ -123,34 +123,13 @@
     border-top: 1px solid var(--border);
   }
 
-  .segmented {
-    display: flex;
-    gap: 2px;
-    padding: 2px;
-    border-radius: var(--radius-sm);
-    background: var(--surface-sunken);
-  }
-
+  /* The three share the panel's width evenly; the track and the pressed
+     state are `.segmented` in app.css. */
   .segmented button {
     flex: 1;
     padding: 6px 0;
-    border-radius: 5px;
     font-size: 12.5px;
     font-weight: 500;
-    color: var(--text-muted);
-    transition:
-      background 0.12s ease,
-      color 0.12s ease;
-  }
-
-  .segmented button:hover {
-    color: var(--text);
-  }
-
-  .segmented button.active {
-    background: var(--surface);
-    color: var(--text);
-    box-shadow: var(--shadow-sm);
   }
 
   .toggle {

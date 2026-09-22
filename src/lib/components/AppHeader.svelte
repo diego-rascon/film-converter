@@ -216,31 +216,13 @@
     color: var(--text-faint);
   }
 
-  .icon-btn.active {
+  .icon-btn.active,
+  .add.open {
     background: var(--surface-sunken);
+  }
+
+  .icon-btn.active {
     color: var(--text);
-  }
-
-  .popover-host {
-    position: relative;
-  }
-
-  .popover {
-    position: absolute;
-    top: calc(100% + 6px);
-    right: 0;
-    z-index: 40;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-lg);
-    animation: drop 0.12s ease;
-  }
-
-  .popover.left {
-    left: 0;
-    right: auto;
-    white-space: nowrap;
   }
 
   .add :global(svg:last-child) {
@@ -248,10 +230,8 @@
     margin-left: -2px;
   }
 
-  .add.open {
-    background: var(--surface-sunken);
-  }
-
+  /* The shape and the drop come from `.popover` in app.css; these two are
+     the only panels on the bar that need a size of their own. */
   .popover.wide {
     width: 320px;
     padding: 16px;
@@ -259,33 +239,5 @@
 
   .popover.menu {
     min-width: 168px;
-    padding: 5px;
-  }
-
-  .popover.menu button {
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    width: 100%;
-    padding: 8px 10px;
-    border-radius: var(--radius-sm);
-    font-size: 13px;
-    text-align: left;
-    color: var(--text);
-  }
-
-  .popover.menu button:hover {
-    background: var(--surface-sunken);
-  }
-
-  .popover.menu button :global(svg) {
-    color: var(--text-faint);
-  }
-
-  @keyframes drop {
-    from {
-      opacity: 0;
-      transform: translateY(-4px);
-    }
   }
 </style>

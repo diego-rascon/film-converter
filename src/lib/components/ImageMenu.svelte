@@ -128,12 +128,22 @@
     opacity: 1;
   }
 
+  /* One button in two sizes: the variants differ only in the square they
+     take, so everything else is stated once. */
   .trigger {
     display: grid;
     place-items: center;
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
     transition:
       background 0.12s ease,
       color 0.12s ease;
+  }
+
+  .trigger:hover,
+  .open .trigger {
+    background: var(--surface-sunken);
+    color: var(--text);
   }
 
   /* A touch smaller than a row's, so the caption stays close to the height
@@ -141,14 +151,6 @@
   .caption .trigger {
     width: 24px;
     height: 24px;
-    border-radius: var(--radius-sm);
-    color: var(--text-muted);
-  }
-
-  .caption .trigger:hover,
-  .caption.open .trigger {
-    background: var(--surface-sunken);
-    color: var(--text);
   }
 
   /* List view: the same square as the remove button it replaced, on the
@@ -156,89 +158,12 @@
   .inline .trigger {
     width: var(--col-action, 28px);
     height: 28px;
-    border-radius: var(--radius-sm);
-    color: var(--text-muted);
   }
 
-  .inline .trigger:hover,
-  .inline.open .trigger {
-    background: var(--surface-sunken);
-    color: var(--text);
-  }
-
+  /* Everything else about the panel — where it hangs, how it animates, the
+     shape of an item — is `.popover` and `.menu` in app.css. Only the width
+     is this menu's, and it is set by its longest label. */
   .popover {
-    position: absolute;
-    top: calc(100% + 6px);
-    /* Right-aligned: the button is at the right edge of a card or a row, so
-       the menu grows inwards rather than off the window. */
-    right: 0;
-    z-index: 40;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-lg);
-    animation: drop 0.12s ease;
-  }
-
-  /* Rows near the bottom of a long list would otherwise open into nothing. */
-  .popover.up {
-    top: auto;
-    bottom: calc(100% + 6px);
-    animation-name: rise;
-  }
-
-  .popover.menu {
     min-width: 186px;
-    padding: 5px;
-  }
-
-  .popover.menu button {
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    width: 100%;
-    padding: 8px 10px;
-    border-radius: var(--radius-sm);
-    font-size: 13px;
-    text-align: left;
-    white-space: nowrap;
-    color: var(--text);
-  }
-
-  .popover.menu button:hover {
-    background: var(--surface-sunken);
-  }
-
-  .popover.menu button :global(svg) {
-    color: var(--text-faint);
-  }
-
-  .popover.menu button.danger,
-  .popover.menu button.danger :global(svg) {
-    color: var(--danger);
-  }
-
-  .popover.menu button.danger:hover {
-    background: var(--danger-soft);
-  }
-
-  .separator {
-    height: 1px;
-    margin: 5px 4px;
-    background: var(--border);
-  }
-
-  @keyframes drop {
-    from {
-      opacity: 0;
-      transform: translateY(-4px);
-    }
-  }
-
-  @keyframes rise {
-    from {
-      opacity: 0;
-      transform: translateY(4px);
-    }
   }
 </style>

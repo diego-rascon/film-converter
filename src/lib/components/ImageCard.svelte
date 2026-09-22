@@ -134,23 +134,6 @@
     color: var(--danger);
   }
 
-  .shimmer {
-    background: linear-gradient(
-      100deg,
-      var(--surface-sunken) 30%,
-      var(--surface-2) 50%,
-      var(--surface-sunken) 70%
-    );
-    background-size: 220% 100%;
-    animation: sweep 1.3s ease-in-out infinite;
-  }
-
-  @keyframes sweep {
-    to {
-      background-position: -120% 0;
-    }
-  }
-
   .badge {
     position: absolute;
     left: 8px;

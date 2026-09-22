@@ -78,10 +78,4 @@
     border-top-color: transparent;
     animation: spin 0.7s linear infinite;
   }
-
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
-  }
 </style>

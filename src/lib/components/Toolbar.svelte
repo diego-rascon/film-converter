@@ -161,13 +161,6 @@
     justify-content: flex-end;
   }
 
-  /* Muted at rest like its neighbours — a toolbar that is always on screen
-     should not carry a red button — and red only under the pointer. */
-  .danger:hover:not(:disabled) {
-    background: var(--danger-soft);
-    color: var(--danger);
-  }
-
   .btn-ghost.on {
     background: var(--accent-soft);
     color: var(--accent);
@@ -185,12 +178,13 @@
     width: 84px;
   }
 
+  /* Only what is this switch's own: `.segmented` in app.css carries the
+     track, the hover and the pressed state. These are glyphs rather than
+     words, so they take a square and the fainter resting colour an icon
+     wants — set as the track's property, which is how the shared rule
+     takes an override. */
   .segmented {
-    display: flex;
-    gap: 2px;
-    padding: 2px;
-    border-radius: var(--radius-sm);
-    background: var(--surface-sunken);
+    --segmented-rest: var(--text-faint);
   }
 
   .segmented button {
@@ -198,21 +192,6 @@
     place-items: center;
     width: 30px;
     height: 28px;
-    border-radius: 5px;
-    color: var(--text-faint);
-    transition:
-      background 0.12s ease,
-      color 0.12s ease;
-  }
-
-  .segmented button:hover {
-    color: var(--text);
-  }
-
-  .segmented button.active {
-    background: var(--surface);
-    color: var(--text);
-    box-shadow: var(--shadow-sm);
   }
 
   /* Below this the clusters need their own lines. */

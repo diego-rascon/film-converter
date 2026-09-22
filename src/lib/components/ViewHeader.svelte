@@ -20,7 +20,7 @@
 
 {#snippet sort(key: "name" | "size", label: string, variant: string)}
   <button
-    class="cell {variant}"
+    class="caps cell {variant}"
     class:active={session.sortKey === key}
     onclick={() => session.sortBy(key)}
     title="Sort by {key === 'name' ? 'name' : 'file size'}"
@@ -58,14 +58,14 @@
     <div class="cols">
       <span class="thumb-slot"></span>
       {@render sort("name", "Name", "grow")}
-      <span class="cell dims">Dimensions</span>
+      <span class="caps cell dims">Dimensions</span>
       {@render sort("size", "Size", "meta")}
     </div>
 
-    <span class="cell status">Status</span>
+    <span class="caps cell status">Status</span>
     <span class="action-slot"></span>
   {:else}
-    <span class="cell">Sort</span>
+    <span class="caps cell">Sort</span>
     {@render sort("name", "Name", "loose")}
     {@render sort("size", "Size", "loose")}
   {/if}
@@ -123,16 +123,11 @@
     flex: none;
   }
 
-  /* Same shape as `.field-label`, which is how this app labels a group. */
+  /* Carries `.caps` in the markup for the type; this is the layout. */
   .cell {
     display: flex;
     align-items: center;
     gap: 4px;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--text-faint);
     white-space: nowrap;
   }
 
