@@ -2,10 +2,8 @@
   import { onMount } from "svelte";
   import { listen } from "@tauri-apps/api/event";
   import { getCurrentWebview } from "@tauri-apps/api/webview";
-  import { open } from "@tauri-apps/plugin-dialog";
-  import { revealItemInDir } from "@tauri-apps/plugin-opener";
-
   import { startupPaths } from "$lib/api";
+  import { pickFolder, pickImages, revealItems } from "$lib/files";
 
   import AboutModal from "$lib/components/AboutModal.svelte";
   import AppHeader from "$lib/components/AppHeader.svelte";
@@ -76,47 +74,6 @@
     };
   });
 
-  async function pickFiles() {
-    const chosen = await open({
-      multiple: true,
-      title: "Choose film scans",
-      filters: [
-        {
-          name: "Images",
-          extensions: ["jpg", "jpeg", "png", "tif", "tiff", "bmp", "webp"],
-        },
-      ],
-    });
-    if (Array.isArray(chosen)) await session.add(chosen);
-    else if (typeof chosen === "string") await session.add([chosen]);
-  }
-
-  async function pickFolder() {
-    const chosen = await open({
-      directory: true,
-      multiple: false,
-      title: "Choose a folder of scans",
-    });
-    if (typeof chosen === "string") await session.add([chosen]);
-  }
-
-  /**
-   * Opens the enclosing folder with the files picked out. A whole selection
-   * goes in one call: the plugin shows them together rather than opening a
-   * window each.
-   */
-  async function reveal(paths: string | string[]) {
-    if (paths.length === 0) return;
-    try {
-      await revealItemInDir(paths);
-    } catch {
-      session.notice = {
-        kind: "error",
-        text: "Could not open the file manager",
-      };
-    }
-  }
-
   /** Plain click picks one; shift extends from the last pick. */
   function pick(path: string, event: MouseEvent) {
     event.stopPropagation();
@@ -168,7 +125,7 @@
   <AppHeader
     oncredits={() => (creditsOpen = true)}
     onabout={() => (aboutOpen = true)}
-    onpickFiles={pickFiles}
+    onpickFiles={pickImages}
     onpickFolder={pickFolder}
   />
 
@@ -177,7 +134,7 @@
       {showOriginal}
       ontoggleCompare={() => (showOriginal = !showOriginal)}
       oninfo={() => (infoPath = session.selected[0]?.path ?? null)}
-      onreveal={() => reveal(session.selected.map((i) => i.path))}
+      onreveal={() => revealItems(session.selected.map((i) => i.path))}
     />
   {/if}
 
@@ -188,7 +145,7 @@
       <DropZone
         {dragging}
         importing={session.importing}
-        onpickFiles={pickFiles}
+        onpickFiles={pickImages}
         onpickFolder={pickFolder}
       />
     {:else if settings.viewMode === "grid"}
@@ -212,7 +169,7 @@
               onopen={() => session.openViewer(image.path)}
               ontoggleSelect={(event) => pick(image.path, event)}
               oninfo={() => (infoPath = image.path)}
-              onreveal={() => reveal(image.path)}
+              onreveal={() => revealItems(image.path)}
               onremove={() => session.remove([image.path])}
             />
           {/each}
@@ -231,7 +188,7 @@
               onopen={() => session.openViewer(image.path)}
               ontoggleSelect={(event) => pick(image.path, event)}
               oninfo={() => (infoPath = image.path)}
-              onreveal={() => reveal(image.path)}
+              onreveal={() => revealItems(image.path)}
               onremove={() => session.remove([image.path])}
             />
           {/each}
@@ -260,7 +217,7 @@
     index={session.viewerIndex}
     total={session.total}
     {showOriginal}
-    onreveal={() => reveal(session.viewerImage!.path)}
+    onreveal={() => revealItems(session.viewerImage!.path)}
   />
 {/if}
 

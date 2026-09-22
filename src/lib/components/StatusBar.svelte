@@ -1,8 +1,6 @@
 <script lang="ts">
-  import { open } from "@tauri-apps/plugin-dialog";
-  import { openPath } from "@tauri-apps/plugin-opener";
-
   import Icon from "./Icon.svelte";
+  import { openFolder, pickOutputFolder } from "$lib/files";
   import { counted } from "$lib/format";
   import { session } from "$lib/session.svelte";
   import { settings } from "$lib/settings.svelte";
@@ -24,28 +22,12 @@
    * last folder used seeds the dialog and is what "Show output" opens.
    */
   async function save() {
-    const chosen = await open({
-      directory: true,
-      multiple: false,
-      title: "Save developed images to",
-      defaultPath: settings.directory || undefined,
-    });
-    if (typeof chosen !== "string") return;
+    const chosen = await pickOutputFolder(settings.directory);
+    if (chosen === null) return;
 
     settings.directory = chosen;
     settings.save();
     await session.develop();
-  }
-
-  async function revealOutput() {
-    try {
-      await openPath(settings.directory);
-    } catch {
-      session.notice = {
-        kind: "error",
-        text: "Could not open the output folder",
-      };
-    }
   }
 </script>
 
@@ -62,7 +44,7 @@
 
   <div class="right">
     {#if session.developed > 0 && !session.developing}
-      <button class="btn btn-ghost" onclick={revealOutput}>
+      <button class="btn btn-ghost" onclick={() => openFolder(settings.directory)}>
         <Icon name="external" size={15} />
         Show output
       </button>
