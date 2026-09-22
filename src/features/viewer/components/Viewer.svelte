@@ -3,7 +3,8 @@
   import ViewerHeader from "./ViewerHeader.svelte";
   import ViewerStage from "./ViewerStage.svelte";
   import type { Mode } from "../types";
-  import { FULL_PREVIEW_EDGE, buildPreview } from "$lib/api";
+  import { buildPreview } from "$lib/api";
+  import { FULL_PREVIEW_EDGE } from "$data/preview";
   import { session } from "$state/session.svelte";
   import { ZoomPan } from "../state/zoom.svelte";
   import type { ImageItem } from "$types";

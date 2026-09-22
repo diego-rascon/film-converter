@@ -44,9 +44,3 @@ export function defaultOutputDir(): Promise<string> {
 export function startupPaths(): Promise<string[]> {
   return invoke("startup_paths");
 }
-
-/** Longest edge, in pixels, of the thumbnails shown in the grid and list. */
-export const CARD_PREVIEW_EDGE = 720;
-
-/** Longest edge of the larger preview the fullscreen viewer requests. */
-export const FULL_PREVIEW_EDGE = 2000;

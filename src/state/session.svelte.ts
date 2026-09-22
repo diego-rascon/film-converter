@@ -1,20 +1,13 @@
 import {
-  CARD_PREVIEW_EDGE,
   buildPreview,
   cancelBatch,
   developBatch,
   importPaths,
 } from "$lib/api";
+import { CARD_PREVIEW_EDGE, PREVIEW_CONCURRENCY } from "$data/preview";
 import { counted, describeError } from "$utils/format";
 import { settings } from "./settings.svelte";
 import type { BatchProgress, BatchReport, ImageItem } from "$types";
-
-/**
- * How many previews to decode at once. Previews are full decodes of
- * potentially very large scans, so this keeps memory and CPU in check while
- * still using more than one core.
- */
-const PREVIEW_CONCURRENCY = 4;
 
 /** Which column the list is ordered by; `added` is the import order. */
 export type SortKey = "added" | "name" | "size";

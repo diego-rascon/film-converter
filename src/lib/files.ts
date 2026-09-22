@@ -1,6 +1,7 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { openPath, revealItemInDir } from "@tauri-apps/plugin-opener";
 
+import { IMAGE_EXTENSIONS } from "$data/formats";
 import { session } from "$state/session.svelte";
 
 /**
@@ -11,15 +12,12 @@ import { session } from "$state/session.svelte";
  * notice rather than throwing at a component.
  */
 
-/** What `import_paths` will accept; the dialog filters to the same set. */
-const EXTENSIONS = ["jpg", "jpeg", "png", "tif", "tiff", "bmp", "webp"];
-
 /** Asks for scans and adds whatever was chosen to the session. */
 export async function pickImages() {
   const chosen = await open({
     multiple: true,
     title: "Choose film scans",
-    filters: [{ name: "Images", extensions: EXTENSIONS }],
+    filters: [{ name: "Images", extensions: IMAGE_EXTENSIONS }],
   });
   await session.add(asPaths(chosen));
 }

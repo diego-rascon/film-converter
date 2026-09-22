@@ -24,6 +24,7 @@ const config = {
     // Inside a feature, siblings are imported relatively.
     alias: {
       $components: "src/components",
+      $data: "src/data",
       $features: "src/features",
       $hooks: "src/hooks",
       $state: "src/state",
