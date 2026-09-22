@@ -26,19 +26,67 @@ is a byte-exact port** — see the invariant below before touching `processing.r
 ## Architecture
 
 **Front end** — SvelteKit in SPA mode (`adapter-static` with an `index.html` fallback,
-`ssr = false` in [+layout.ts](src/routes/+layout.ts)). Vite builds to `build/`, which
-`tauri.conf.json` serves as `frontendDist`. There is one route,
-[+page.svelte](src/routes/+page.svelte).
+`ssr = false` in [+layout.ts](src/app/+layout.ts)). Vite builds to `build/`, which
+`tauri.conf.json` serves as `frontendDist`.
 
-There is one route, [+page.svelte](src/routes/+page.svelte), and it is the app
+`src/` is one folder per layer, and an import says which layer it crosses into:
+[svelte.config.js](svelte.config.js) gives each folder an alias, so only a sibling
+*inside the same folder* is reached relatively.
+
+```
+src/
+├── app/            the routes — the layout and the one page (`kit.files.routes`,
+│                   so there is no `src/routes`)
+├── components/     $components — UI that more than one feature draws, grouped by
+│                   what it is: `image/`, `overlay/`, `window/`, and `Icon.svelte`
+├── data/           $data — constants more than one module reads
+├── features/       $features — one slice of the app per folder, each with its
+│   │               own `components/`, `types/`, `utils/`, `state/` or `data/` —
+│   │               the same folders as the top level, for what only it uses
+│   ├── roll/       the loaded images: the grid, the list and their bars
+│   ├── shell/      the app's own chrome: the titlebar, the toolbar, the status
+│   │               bar and the panels they open
+│   └── viewer/     the fullscreen overlay, plus its own `state/`
+├── hooks/          $hooks — reusable behaviour bound from an `$effect`
+├── lib/            $lib — one module per outside surface
+├── state/          $state — the two runes singletons
+├── styles/         $styles — the stylesheet, in four parts plus its entry
+├── types/          $types — what the Rust side sends and takes
+└── utils/          $utils — pure helpers
+```
+
+A feature owns everything only it uses, which is why `ZoomPan`
+([viewer/state/zoom.svelte.ts](src/features/viewer/state/zoom.svelte.ts)) and the
+viewer's `Mode` ([viewer/types/index.ts](src/features/viewer/types/index.ts)) sit
+inside `features/viewer/` rather than in a shared folder — each feature mirrors the
+top level's own split, so a type only one feature's components take goes in that
+feature's `types/` and reactive state only it needs goes in that feature's `state/`.
+A file moves *out* to the top level the second something outside the feature needs
+it — `StatusChip` and `ImageFacts` are in `components/image/`, and the properties
+dialog beside them in `components/overlay/`, because the viewer and the roll both
+reach them. That is the whole rule for where a new file goes.
+**Nothing imports across features**: the only place that names two of them is the
+route, and what two of them both need is already at the top level by the time they
+both need it.
+
+Constants follow the same rule. `data/` holds the values more than one module reads,
+which is why the preview edges are [data/preview.ts](src/data/preview.ts) rather than
+riding along in `api.ts` — that file is command wrappers and nothing else — and the
+accepted extensions are [data/formats.ts](src/data/formats.ts), one list behind both
+the Rust importer and the dialog filter. A number only one component tunes stays in
+that component: `DISMISS_MS` in `NoticePanel` and `MENU_HEIGHT` in `ImageMenu` are
+nobody else's business, and moving them to `data/` would scatter them without
+sharing anything.
+
+[+page.svelte](src/app/+page.svelte), the one route, is the app
 *shell* only: the bars, whichever view is showing, and the overlays. The two
-views own their own layout ([ImageGrid](src/lib/components/ImageGrid.svelte) and
-[ImageList](src/lib/components/ImageList.svelte)), so the page holds no `--col-*`
+views own their own layout ([ImageGrid](src/features/roll/components/ImageGrid.svelte) and
+[ImageList](src/features/roll/components/ImageList.svelte)), so the page holds no `--col-*`
 widths and no `{#each}` of its own.
 
 State lives in two singleton classes using Svelte 5 runes, exported as instances:
 
-- [session.svelte.ts](src/lib/session.svelte.ts) — the loaded images, their order,
+- [session.svelte.ts](src/state/session.svelte.ts) — the loaded images, their order,
   selection, viewer index, batch progress, and the preview queue (4 decodes at a time).
   `images` is the one order the app has — the grid, the viewer's index and shift-click
   ranges all read it — so `sortBy` reorders the array itself rather than handing the list
@@ -50,7 +98,7 @@ State lives in two singleton classes using Svelte 5 runes, exported as instances
   `$derived`, not getters. A getter recomputes per read, and `hasSelection` is passed
   to every card and every row, so it would scan the whole roll once per image on
   every pick. Add a new one as `$derived` for the same reason.
-- [settings.svelte.ts](src/lib/settings.svelte.ts) — output folder/format/quality plus
+- [settings.svelte.ts](src/state/settings.svelte.ts) — output folder/format/quality plus
   theme and view mode, persisted to local storage. Nothing auto-saves: callers invoke
   `settings.save()` explicitly after a change. `directory` is not a setting the user
   edits: **Save…** asks for the destination on every run and stores the answer there,
@@ -61,15 +109,22 @@ past: [api.ts](src/lib/api.ts) holds one thin typed wrapper per Rust command and
 else, and [files.ts](src/lib/files.ts) holds the Tauri dialog and opener calls — the two
 file pickers, the output picker, and the two ways of handing a path to the file manager,
 each of which reports failure by leaving a `session.notice` rather than throwing at a
-component. [types.ts](src/lib/types.ts) mirrors the serde structs in `commands.rs`,
+component. [types/index.ts](src/types/index.ts) mirrors the serde structs in `commands.rs`,
 which all use `rename_all = "camelCase"`, so nothing that is only a UI shape belongs in
 it — a card's and a row's shared props are
-[components/tile.ts](src/lib/components/tile.ts).
+[roll/types/index.ts](src/features/roll/types/index.ts), and the callbacks bound into
+them are [roll/utils/tile.ts](src/features/roll/utils/tile.ts): the grid and the list
+answer a tile identically, so `tileCallbacks` and `previewSource` are written once
+there rather than in each view.
 
-The rest of `lib/` is the shared non-visual pieces:
-[format.ts](src/lib/format.ts) (`plural`, `counted`, `formatBytes`, `describeError`),
-[popover.svelte.ts](src/lib/popover.svelte.ts) (`dismissOnOutside`, `PopoverGroup`) and
-[zoom.svelte.ts](src/lib/zoom.svelte.ts) (the viewer's `ZoomPan`).
+The non-visual pieces sort the same way by who needs them:
+[format.ts](src/utils/format.ts) (`plural`, `counted`, `formatBytes`, `formatDate`, `describeError`) is
+`utils/` because it is pure and everything calls it,
+[popover.svelte.ts](src/hooks/popover.svelte.ts) (`dismissOnOutside`, `PopoverGroup`) is
+`hooks/` because the shell and the roll both bind it from an `$effect`, and
+[zoom.svelte.ts](src/features/viewer/state/zoom.svelte.ts) stays inside
+`features/viewer/state/` — the feature's own mirror of top-level `state/` — because
+nothing else has a stage to pan.
 
 **Rust side** — three modules under [src-tauri/src/](src-tauri/src/):
 
@@ -82,7 +137,7 @@ The rest of `lib/` is the shared non-visual pieces:
   in [lib.rs](src-tauri/src/lib.rs).
 
 Adding a command means touching four places: the function in `commands.rs`, the
-`invoke_handler!` list in `lib.rs`, a wrapper in `api.ts`, and its types in `types.ts`.
+`invoke_handler!` list in `lib.rs`, a wrapper in `api.ts`, and its types in `types/`.
 
 ## The byte-exactness invariant
 
@@ -114,25 +169,27 @@ a single decode — the CSP in `tauri.conf.json` allows `data:` in `img-src`, so
 image source needs that CSP updated too.
 
 Cards request `CARD_PREVIEW_EDGE` (720px); the fullscreen viewer re-requests at
-`FULL_PREVIEW_EDGE` (2000px).
+`FULL_PREVIEW_EDGE` (2000px). Both, and the four-at-a-time `PREVIEW_CONCURRENCY`,
+are in [data/preview.ts](src/data/preview.ts), because the session and the viewer
+each read them.
 
 ## The custom window frame
 
 The window is created with `decorations: false`, so the app draws its own
-titlebar: [AppHeader.svelte](src/lib/components/AppHeader.svelte) is the titlebar,
-and [WindowControls.svelte](src/lib/components/WindowControls.svelte) holds the
+titlebar: [AppHeader.svelte](src/features/shell/components/AppHeader.svelte) is the titlebar,
+and [WindowControls.svelte](src/components/window/WindowControls.svelte) holds the
 minimise/maximise/close buttons at its right end. Three consequences:
 
 - Anything that wants to drag the window needs `data-tauri-drag-region` on the
   element the pointer actually lands on — Tauri checks the event target itself,
   not its ancestors. Hence the attribute on the header *and* on the viewer's
   title spans, and `pointer-events: none` on the brand.
-- [Viewer.svelte](src/lib/components/Viewer.svelte) is a fullscreen overlay that
+- [Viewer.svelte](src/features/viewer/components/Viewer.svelte) is a fullscreen overlay that
   covers the header, so its header repeats the drag region and the window buttons.
   Any new full-window overlay has to do the same or the window becomes
   unmovable while it is open.
 - GTK stops handling the resize border on an undecorated window, so
-  [WindowResizeEdges.svelte](src/lib/components/WindowResizeEdges.svelte) draws
+  [WindowResizeEdges.svelte](src/components/window/WindowResizeEdges.svelte) draws
   its own 4px grips and calls `startResizeDragging`. They sit at `z-index: 70`,
   above the viewer (50) and the modals (60), which caps how high anything else
   may go. They also overlay the window's outermost pixels, so the headers keep a
@@ -147,13 +204,13 @@ The buttons, the drag region and the grips each need their own permission in
 
 `Viewer.svelte` owns only what the viewer *is* — which image, which mode, the
 sharper pair, the keyboard — and hands the drawing to
-[components/viewer/](src/lib/components/viewer/):
-[ViewerHeader](src/lib/components/viewer/ViewerHeader.svelte) (the titlebar),
-[ViewerStage](src/lib/components/viewer/ViewerStage.svelte) (the pictures, the wipe
-and the drag), [ViewerDetails](src/lib/components/viewer/ViewerDetails.svelte) (the
-sidebar) and [ViewerPod](src/lib/components/viewer/ViewerPod.svelte) (one floating
+[components/viewer/](src/features/viewer/components/):
+[ViewerHeader](src/features/viewer/components/ViewerHeader.svelte) (the titlebar),
+[ViewerStage](src/features/viewer/components/ViewerStage.svelte) (the pictures, the wipe
+and the drag), [ViewerDetails](src/features/viewer/components/ViewerDetails.svelte) (the
+sidebar) and [ViewerPod](src/features/viewer/components/ViewerPod.svelte) (one floating
 glass cluster, used twice). Zoom and pan are not component state at all but
-[ZoomPan](src/lib/zoom.svelte.ts), which is what lets the keyboard, the zoom pod and
+[ZoomPan](src/features/viewer/state/zoom.svelte.ts), which is what lets the keyboard, the zoom pod and
 the drag all drive one control without passing four setters around; the stage binds
 itself into `zoom.stage` because every measurement — the pan clamp, the wipe, the
 wheel's origin — is taken against that one rectangle.
@@ -170,7 +227,7 @@ the front end resets anything still marked `developing` back to `pending`.
 - Svelte 5 runes throughout (`$state`, `$props`, `$derived`). No stores, no
   `createEventDispatcher` — components take callback props (`onopen`, `onremove`,
   `ontoggleSelect`).
-- Styling is plain CSS. [app.css](src/app.css) is four `@import`s and nothing else:
+- Styling is plain CSS. [app.css](src/styles/app.css) is four `@import`s and nothing else:
   [tokens.css](src/styles/tokens.css) (every colour, radius and measure, and both
   themes), [base.css](src/styles/base.css) (the reset and element defaults),
   [motion.css](src/styles/motion.css) (every `@keyframes` in the app plus the
@@ -178,7 +235,7 @@ the front end resets anything still marked `developing` back to `pending`.
   one component draws). A component styles only what is its own; **a rule earns its
   place in `controls.css` the second component that needs it**, and an animation goes
   in `motion.css` outright — `dialog-in` in
-  [Modal.svelte](src/lib/components/Modal.svelte) is the one deliberate local
+  [Modal.svelte](src/components/overlay/Modal.svelte) is the one deliberate local
   keyframe, because a dialog comes forward rather than sliding up. What is already
   shared: `.btn` and its variants, `.icon-btn` (`.danger` and `.small` included),
   `.caps` (the small uppercase label, of which `.field-label` is the form-field
@@ -204,7 +261,7 @@ the front end resets anything still marked `developing` back to `pending`.
 - The toolbar's ends are split by what a control acts on: the *view* on the left —
   grid/list, the thumbnail slider, the before/after toggle — and the *selection* on
   the right. The right cluster is properties, show in folder, remove, the same three
-  an image's own [ImageMenu](src/lib/components/ImageMenu.svelte) carries, as icons.
+  an image's own [ImageMenu](src/features/roll/components/ImageMenu.svelte) carries, as icons.
   They are always there and go disabled without a selection rather than appearing
   with one, so the toolbar never shifts under the pointer; properties needs exactly
   one image, the other two take any number. **Remove** is muted at rest and only
@@ -215,7 +272,7 @@ the front end resets anything still marked `developing` back to `pending`.
 - The status bar's left end is deliberately quiet: a muted count of the loaded
   images and nothing else. Everything that used to sit there — the notice, the run
   summary, the failed-image list — is now
-  [NoticePanel.svelte](src/lib/components/NoticePanel.svelte), a toast floating at the
+  [NoticePanel.svelte](src/features/shell/components/NoticePanel.svelte), a toast floating at the
   bottom of `main` so a message can run as long as it likes and a failed run can unfold
   its list under it. It dismisses itself after a few seconds, *except* for errors, for
   runs that left failures, and for as long as a run is in flight — those wait to be
@@ -224,7 +281,7 @@ the front end resets anything still marked `developing` back to `pending`.
   footer's right cluster is pushed over by `margin-left: auto` rather than the footer
   being `space-between`: the count is absent before any image is loaded, and **Save…**
   must not slide left when it is.
-- [Viewer.svelte](src/lib/components/Viewer.svelte) splits its header the way the
+- [Viewer.svelte](src/features/viewer/components/Viewer.svelte) splits its header the way the
   toolbar splits its bar, so an image's actions are where they were before it was
   opened: the before/after switch on the left, on the same `--gutter`, and details,
   show in folder and remove on the right, in the toolbar's order. Close and the
@@ -299,19 +356,19 @@ the front end resets anything still marked `developing` back to `pending`.
   It is a sidebar, not a modal: it stays open while the arrows move through the
   roll, `Escape` still closes the viewer, and the stage narrows rather than the
   panel floating over it, so the wipe divider stays reachable. Its body is
-  [ImageFacts.svelte](src/lib/components/ImageFacts.svelte), the same list
-  [InfoModal](src/lib/components/InfoModal.svelte) shows, `dense` so the labels
+  [ImageFacts.svelte](src/components/image/ImageFacts.svelte), the same list
+  [InfoModal](src/components/overlay/InfoModal.svelte) shows, `dense` so the labels
   stack above their values in the narrow column. It reads each file's header as
   the viewer arrives at it and keeps what it has read: a header does not change
   under an open session, and browsing back and forth would otherwise blink through
   the waiting line at every press.
-- [ViewHeader.svelte](src/lib/components/ViewHeader.svelte) is the bar above the images
+- [ViewHeader.svelte](src/features/roll/components/ViewHeader.svelte) is the bar above the images
   in *both* views, and the only place select-all and the sort controls live — the toolbar
   deliberately carries neither. It reads `settings.viewMode` itself: in list view the sort
   controls double as column headings and take the column widths, in grid view they are
-  plain buttons. Its list columns and [ImageRow.svelte](src/lib/components/ImageRow.svelte)
+  plain buttons. Its list columns and [ImageRow.svelte](src/features/roll/components/ImageRow.svelte)
   have to agree: the widths are `--col-*` custom properties set on `.list` in
-  [ImageList.svelte](src/lib/components/ImageList.svelte), while the side padding is written out in both
+  [ImageList.svelte](src/features/roll/components/ImageList.svelte), while the side padding is written out in both
   and has to stay identical — the gutter on the left, `calc(var(--gutter) - 6px)` on the
   right for the menu button's hang. Both also carry the same
   `margin-right: calc(var(--gutter) - 10px)` on their checkbox, which is what puts the
@@ -321,8 +378,8 @@ the front end resets anything still marked `developing` back to `pending`.
   the other. A row's checkbox is otherwise faded out: it comes up under the pointer, and
   on every row at once as soon as anything is picked — the box is only in the way while
   there is no selection to extend. A card's does exactly the same, from the same
-  `anySelected` prop, which [ImageGrid](src/lib/components/ImageGrid.svelte) and
-  [ImageList](src/lib/components/ImageList.svelte) pass from `session.hasSelection`; that is also why a card's box no longer keys off its own
+  `anySelected` prop, which [ImageGrid](src/features/roll/components/ImageGrid.svelte) and
+  [ImageList](src/features/roll/components/ImageList.svelte) pass from `session.hasSelection`; that is also why a card's box no longer keys off its own
   `image.selected`, which `anySelected` already covers. Both fade rather than hide — a
   row's would collapse the column it holds and take the header's grid with it — and the
   row's rule restates the base transition from
@@ -380,12 +437,12 @@ the front end resets anything still marked `developing` back to `pending`.
   Anything spanning the window's width has the same problem at one end or the other,
   which is why the footer's two ends are not allowed to differ. Shrink the button
   before shortening the bar.
-  The same line carries the two dashed drop frames: [DropZone](src/lib/components/DropZone.svelte)'s
-  panel and `.drop-overlay` in [+page.svelte](src/routes/+page.svelte) are the same
+  The same line carries the two dashed drop frames: [DropZone](src/features/roll/components/DropZone.svelte)'s
+  panel and `.drop-overlay` in [+page.svelte](src/app/+page.svelte) are the same
   offer in the empty and the loaded window, so they are outlined in the same place.
   It also carries what the images end on: the grid's padding and the list's bottom
   padding are both the gutter, so the last row stops the same distance above the
-  status bar in either view, and [NoticePanel](src/lib/components/NoticePanel.svelte)
+  status bar in either view, and [NoticePanel](src/features/shell/components/NoticePanel.svelte)
   floats on it as well. Inside a bar the number means nothing — the toolbar's 7px, a
   popover's 5px, a button's own padding are all free.
   `input[type="checkbox"]` has its UA margin zeroed in
@@ -394,8 +451,8 @@ the front end resets anything still marked `developing` back to `pending`.
   positioned inside a `position: relative` host marked `data-popover`. Their owner closes
   them on a window `pointerdown` whose target has no `[data-popover]` ancestor, and
   swallows `Escape` in the *capture* phase so the same key does not also reach
-  [+page.svelte](src/routes/+page.svelte)'s shortcut handler and clear the selection.
-  [ImageMenu.svelte](src/lib/components/ImageMenu.svelte) — the three-dot menu that
+  [+page.svelte](src/app/+page.svelte)'s shortcut handler and clear the selection.
+  [ImageMenu.svelte](src/features/roll/components/ImageMenu.svelte) — the three-dot menu that
   carries a single image's actions in *both* views — follows the same etiquette with two
   deliberate differences, because there is one of them per image and a session holds
   hundreds: its window listeners are bound by an `$effect` only while it is open, and
@@ -408,16 +465,16 @@ the front end resets anything still marked `developing` back to `pending`.
   card's button cannot go back over the thumbnail without the menu becoming a child of
   the figure again.
   Both popovers follow one etiquette from
-  [popover.svelte.ts](src/lib/popover.svelte.ts): `dismissOnOutside` binds the
+  [popover.svelte.ts](src/hooks/popover.svelte.ts): `dismissOnOutside` binds the
   pointerdown and the capture-phase `Escape` *only while open*, which is what lets a
   session hold hundreds of `ImageMenu`s without hundreds of live listeners, and the
   titlebar's three panels are one `PopoverGroup` — holding the open one by name
   rather than a boolean each is what makes them mutually exclusive by construction.
   Adding files goes through the toolbar's one **Add** menu (images or a folder); the
-  [DropZone](src/lib/components/DropZone.svelte) still offers both as separate buttons
+  [DropZone](src/features/roll/components/DropZone.svelte) still offers both as separate buttons
   because it has the room and nothing else to show.
 - Icons are stroked SVG paths in a single map inside
-  [Icon.svelte](src/lib/components/Icon.svelte); add a path there rather than inlining SVG.
+  [Icon.svelte](src/components/Icon.svelte); add a path there rather than inlining SVG.
 - Drag and drop uses Tauri's `getCurrentWebview().onDragDropEvent`, not the HTML5 API —
   only the Tauri event carries real filesystem paths.
 - New Tauri plugin permissions must be added to

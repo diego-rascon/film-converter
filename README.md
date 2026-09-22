@@ -74,10 +74,15 @@ sideways, and rotating cannot affect the colour pipeline.
 
 ```
 src/                       Svelte 5 front end
-  lib/session.svelte.ts    loaded images, selection, batch progress
-  lib/settings.svelte.ts   preferences, persisted to local storage
+  app/                     the one route
+  components/              UI more than one feature draws
+  features/                the roll, the shell and the viewer, a folder each
   lib/api.ts               typed wrappers over the Rust commands
-  lib/components/          UI
+  lib/files.ts             the desktop dialogs and the file manager
+  state/session.svelte.ts  loaded images, selection, batch progress
+  state/settings.svelte.ts preferences, persisted to local storage
+  hooks/ types/ utils/     shared behaviour, shapes and helpers
+  styles/                  tokens, reset, motion, shared controls
 src-tauri/src/
   processing.rs            invert, percentiles, per-channel stretch
   image_io.rs              decode, downscale, encode, output naming
