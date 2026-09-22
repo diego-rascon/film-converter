@@ -451,16 +451,41 @@ the front end resets anything still marked `developing` back to `pending`.
   and `Escape` read as the same gesture. The mapping from a modifier to a
   `PickModifiers` flag is written once in
   [roll/utils/tile.ts](src/features/roll/utils/tile.ts) beside the rest of what a card
-  and a row answer identically, never in a component. Three things follow. A tile's
-  clickable face is still a `<button>`, so `Enter` opens it — and a button turns
-  `Enter` into a click of its own, which would pick instead, so `openOnEnter` holds
-  that default back; `Space` is left alone and picks, the way a file manager's does.
-  The checkbox is a *toggle* whatever is held, since that is what a box is for and it
-  is how a selection is built without a key down; it also stops its click from
-  reaching the image behind it, which would replace the selection it is being used to
-  add to. And both faces carry `.tile` from
-  [controls.css](src/styles/controls.css) for `user-select: none`, or the second click
-  of every double click drags a text selection across the name.
+  and a row answer identically, never in a component. What differs between the two
+  views is only how much of a tile answers the pointer. A card's face is its
+  thumbnail, which is already a `<button>`. A row's is **the whole row** — the
+  gutters, the flex gaps and the status column included, the way a file manager's
+  rows are — so the handlers sit on `.row` itself and its own two controls are tested
+  for and skipped, one `closest(CONTROLS)` in the way the viewer's stage skips a
+  `.pod`: that covers the menu's 28px slot around its glyph as well as the glyph, and
+  it covers `dblclick`, which a stopped `click` does not. The obvious alternative — a
+  `<button>` stretched over the row with `position: absolute` — is rejected because it
+  swallows the pointer over the cells, and with it `.name`'s path tooltip and
+  `StatusChip`'s failure reason; raising those back above it only moves the dead area
+  onto them. Keeping the cells in normal flow is what keeps both tooltips, and it is
+  why the row's hit area is a handler rather than a surface. Should anything ever
+  float over a row, two things bite. A `z-index` on one of a row's children escapes
+  to the root stacking context, because `.row` is unpositioned, and ties with the
+  sticky [ViewHeader](src/features/roll/components/ViewHeader.svelte)'s own
+  `z-index: 1` — rows would paint over the header they are supposed to pass under.
+  And a `z-index` on `.row` *itself* would make it a stacking context and trap an open
+  [ImageMenu](src/features/roll/components/ImageMenu.svelte)'s `.popover` (`z-index:
+  40`, which today escapes the row) inside it, where the next row covers it. Tree
+  order is the only lever left: `.row` stays unpositioned, and nothing in it takes a
+  `z-index`.
+  The row being one target, it wears one focus ring. `.open` is the tab stop but hands
+  its `:focus-visible` outline to `.row` through `:has()`, drawn 2px *inside* rather
+  than the base rule's 2px out, since a full-bleed row has nothing outside it to draw
+  in. A ring around the cells alone would box a hit area that is not the one the
+  pointer gets.
+  A tile keeps a `<button>` either way, because it is the tile's tab stop: `Enter`
+  opens the image — a button turns `Enter` into a click of its own, which would pick
+  instead, so `openOnEnter` holds that default back — and `Space` is left alone and
+  picks, the way a file manager's does. The checkbox is a *toggle* whatever is held,
+  since that is what a box is for and it is how a selection is built without a key
+  down. Both faces carry `.tile` from [controls.css](src/styles/controls.css) for
+  `user-select: none`, or the second click of every double click drags a text
+  selection across the name — on a row that is the row, since all of it is the face.
 - [ViewHeader.svelte](src/features/roll/components/ViewHeader.svelte) is the bar above the images
   in *both* views, and the only place select-all and the sort controls live — the toolbar
   deliberately carries neither. It reads `settings.viewMode` itself: in list view the sort

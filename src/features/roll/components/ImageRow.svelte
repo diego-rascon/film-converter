@@ -26,13 +26,33 @@
   }: Props = $props();
 
   let source = $derived(previewSource(image, showOriginal));
+
+  /** The row's own controls, which answer a click for themselves. */
+  const CONTROLS = '.image-menu, input[type="checkbox"]';
+
+  /**
+   * The whole row is the image's hit target — the gutters, the gaps and the
+   * status column included — the way a file manager's rows are, rather than
+   * only the cells. The tick box and the menu are the exception, and one test
+   * for them here beats a `stopPropagation` on each: it covers the menu's
+   * slot around its glyph as well as the glyph, and it covers `dblclick`,
+   * which a stopped `click` does not.
+   */
+  function onRow(handle: (event: MouseEvent) => void) {
+    return (event: MouseEvent) => {
+      if (!(event.target as HTMLElement).closest(CONTROLS)) handle(event);
+    };
+  }
 </script>
 
 <div
-  class="row"
+  class="row tile"
   class:striped
   class:picking={anySelected}
   class:selected={image.selected}
+  onclick={onRow(onpick)}
+  ondblclick={onRow(onopen)}
+  role="presentation"
 >
   <input
     type="checkbox"
@@ -41,15 +61,10 @@
     aria-label="Select {image.name}"
   />
 
-  <!-- One click picks the row, a double click opens it, as in a file
-       manager. It stops short of the status chip and the menu, which are the
-       row's own controls. -->
-  <button
-    class="open tile"
-    onclick={onpick}
-    ondblclick={onopen}
-    onkeydown={openOnEnter(onopen)}
-  >
+  <!-- The pointer is the row's business, so this button is here for the
+       keyboard: it is the row's tab stop, Enter opens the image and Space
+       raises a click the row picks on. -->
+  <button class="open" onkeydown={openOnEnter(onopen)}>
     <span class="thumb">
       {#if image.previewStatus === "ready" && source}
         <img src={source} alt="" loading="lazy" />
@@ -83,6 +98,8 @@
     display: flex;
     align-items: center;
     gap: 10px;
+    /* All of it answers the pointer, so all of it says so. */
+    cursor: pointer;
     /* The header's padding exactly, both ends — the checkbox on the gutter
        and the menu button's 6px of slack paid back at the far end — or the
        two stop sharing one column grid. */
@@ -137,6 +154,21 @@
     flex: 1;
     min-width: 0;
     text-align: left;
+  }
+
+  /* One target, one ring. `.open` is only the row's tab stop, so the ring it
+     would draw for itself boxes the cells and stops short of the status
+     column — which is inside the row's hit area just as much as the name is.
+     The row wears it instead, drawn 2px *inside* rather than the base rule's
+     2px out: the rows are full-bleed, so an outward ring is clipped at the
+     window's edge and laps over the rows above and below. */
+  .open:focus-visible {
+    outline: none;
+  }
+
+  .row:has(.open:focus-visible) {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
   }
 
   .thumb {
