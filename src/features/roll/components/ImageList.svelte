@@ -2,7 +2,7 @@
   import ImageRow from "./ImageRow.svelte";
   import ViewHeader from "./ViewHeader.svelte";
   import { session } from "$state/session.svelte";
-  import type { ImageTileProps } from "../types";
+  import { tileCallbacks } from "../utils/tile";
 
   /** List view: the header and the rows, in one scroller. */
   interface Props {
@@ -13,19 +13,6 @@
   }
 
   let { showOriginal, onopen, oninfo, onreveal }: Props = $props();
-
-  function row(path: string): Omit<ImageTileProps, "image" | "anySelected" | "showOriginal"> {
-    return {
-      onopen: () => onopen(path),
-      ontoggleSelect: (event) => {
-        event.stopPropagation();
-        session.pick(path, event.shiftKey);
-      },
-      oninfo: () => oninfo(path),
-      onreveal: () => onreveal(path),
-      onremove: () => session.remove([path]),
-    };
-  }
 </script>
 
 <div class="scroll">
@@ -37,7 +24,7 @@
         striped={index % 2 === 1}
         anySelected={session.hasSelection}
         {showOriginal}
-        {...row(image.path)}
+        {...tileCallbacks(image.path, { onopen, oninfo, onreveal })}
       />
     {/each}
   </div>

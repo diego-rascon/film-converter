@@ -4,6 +4,7 @@
   import StatusChip from "$components/image/StatusChip.svelte";
   import { formatBytes } from "$utils/format";
   import type { ImageTileProps } from "../types";
+  import { previewSource } from "../utils/tile";
 
   /** One scan in list view. Takes a card's props plus the stripe. */
   interface Props extends ImageTileProps {
@@ -23,7 +24,7 @@
     onremove,
   }: Props = $props();
 
-  let source = $derived(showOriginal ? image.original : image.developed);
+  let source = $derived(previewSource(image, showOriginal));
 </script>
 
 <div

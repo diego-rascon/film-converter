@@ -3,7 +3,7 @@
   import ViewHeader from "./ViewHeader.svelte";
   import { session } from "$state/session.svelte";
   import { settings } from "$state/settings.svelte";
-  import type { ImageTileProps } from "../types";
+  import { tileCallbacks } from "../utils/tile";
 
   /** Grid view: the header and the cards, in one scroller. */
   interface Props {
@@ -15,19 +15,6 @@
   }
 
   let { showOriginal, onopen, oninfo, onreveal }: Props = $props();
-
-  function card(path: string): Omit<ImageTileProps, "image" | "anySelected" | "showOriginal"> {
-    return {
-      onopen: () => onopen(path),
-      ontoggleSelect: (event) => {
-        event.stopPropagation();
-        session.pick(path, event.shiftKey);
-      },
-      oninfo: () => oninfo(path),
-      onreveal: () => onreveal(path),
-      onremove: () => session.remove([path]),
-    };
-  }
 </script>
 
 <!-- Clicking the backdrop itself — not a card, not the header — clears the
@@ -49,7 +36,7 @@
         {image}
         anySelected={session.hasSelection}
         {showOriginal}
-        {...card(image.path)}
+        {...tileCallbacks(image.path, { onopen, oninfo, onreveal })}
       />
     {/each}
   </div>

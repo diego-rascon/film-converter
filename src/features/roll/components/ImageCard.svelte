@@ -3,6 +3,7 @@
   import ImageMenu from "./ImageMenu.svelte";
   import StatusChip from "$components/image/StatusChip.svelte";
   import type { ImageTileProps } from "../types";
+  import { previewSource } from "../utils/tile";
 
   /** One scan in grid view. Takes the same props a row does. */
   let {
@@ -16,7 +17,7 @@
     onremove,
   }: ImageTileProps = $props();
 
-  let source = $derived(showOriginal ? image.original : image.developed);
+  let source = $derived(previewSource(image, showOriginal));
 </script>
 
 <figure class:selected={image.selected}>
