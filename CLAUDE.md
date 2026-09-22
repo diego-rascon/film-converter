@@ -174,7 +174,11 @@ the front end resets anything still marked `developing` back to `pending`.
   cluster's 2px, so **Remove** never ends up flush against a close button.
   It is muted at rest and red only under the pointer, for the toolbar's reason.
   The mode switch keeps its own order — before on the left, after on the right is
-  the order the wipe reveals them in. The name and
+  the order the wipe reveals them in. It opens on whichever side the grid or list
+  was showing — `showOriginal` from `+page.svelte` seeds `mode` as before or after,
+  never wipe — so clicking an image does not change what is on screen; the viewer
+  is mounted per opening, so the prop is read once and the switch moves freely
+  from there without feeding back to the toolbar. The name and
   position sit between the two, on the window's centre line by way of equal
   `flex: 1 1 0` flanks rather than the titlebar's absolute positioning: at the
   720px minimum width the right end needs more than its half, and the name has to

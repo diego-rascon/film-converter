@@ -11,14 +11,19 @@
     image: ImageItem;
     index: number;
     total: number;
+    /** The grid's before/after toggle, which is the mode the viewer opens in. */
+    showOriginal: boolean;
     /** Shows the image in the file manager; the page owns the failure notice. */
     onreveal: () => void;
   }
 
-  let { image, index, total, onreveal }: Props = $props();
+  let { image, index, total, showOriginal, onreveal }: Props = $props();
 
   type Mode = "before" | "wipe" | "after";
-  let mode = $state<Mode>("wipe");
+  // Opens on whichever side the grid or list was showing, so clicking an
+  // image does not change what is on screen. The viewer is mounted per
+  // opening, so this is read once and the switch is free to move from there.
+  let mode = $state<Mode>(showOriginal ? "before" : "after");
   /**
    * The details panel is a sidebar, not a dialog: it stays open while the
    * arrows move through the roll, and `ImageFacts` re-reads each file as it
