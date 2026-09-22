@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { listen } from "@tauri-apps/api/event";
   import { getCurrentWebview } from "@tauri-apps/api/webview";
+
   import { startupPaths } from "$lib/api";
   import { pickFolder, pickImages, revealItems } from "$lib/files";
 
@@ -9,11 +10,10 @@
   import AppHeader from "$lib/components/AppHeader.svelte";
   import CreditsModal from "$lib/components/CreditsModal.svelte";
   import DropZone from "$lib/components/DropZone.svelte";
-  import ImageCard from "$lib/components/ImageCard.svelte";
-  import ImageRow from "$lib/components/ImageRow.svelte";
+  import ImageGrid from "$lib/components/ImageGrid.svelte";
+  import ImageList from "$lib/components/ImageList.svelte";
   import InfoModal from "$lib/components/InfoModal.svelte";
   import NoticePanel from "$lib/components/NoticePanel.svelte";
-  import ViewHeader from "$lib/components/ViewHeader.svelte";
   import StatusBar from "$lib/components/StatusBar.svelte";
   import Toolbar from "$lib/components/Toolbar.svelte";
   import Viewer from "$lib/components/Viewer.svelte";
@@ -23,6 +23,12 @@
   import { settings } from "$lib/settings.svelte";
   import type { BatchProgress } from "$lib/types";
 
+  /**
+   * The app shell: the bars, whichever view is showing, and the overlays.
+   * The two views own their own layout, the session owns the images and
+   * [files.ts](src/lib/files.ts) owns the dialogs, so what is left here is
+   * the wiring between them.
+   */
   let ready = $state(false);
   let dragging = $state(false);
   let showOriginal = $state(false);
@@ -32,6 +38,13 @@
   let infoPath = $state<string | null>(null);
 
   let infoImage = $derived(infoPath === null ? null : session.find(infoPath));
+
+  /** What a card or a row reports back, the same in either view. */
+  const viewCallbacks = {
+    onopen: (path: string) => session.openViewer(path),
+    oninfo: (path: string) => (infoPath = path),
+    onreveal: (path: string) => revealItems(path),
+  };
 
   onMount(() => {
     const disposers: (() => void)[] = [];
@@ -70,12 +83,6 @@
       for (const dispose of disposers) dispose();
     };
   });
-
-  /** A card's or a row's checkbox; the session owns the range and its anchor. */
-  function pick(path: string, event: MouseEvent) {
-    event.stopPropagation();
-    session.pick(path, event.shiftKey);
-  }
 
   function onkeydown(event: KeyboardEvent) {
     // The viewer and the dialogs run their own keyboard handling.
@@ -130,51 +137,9 @@
         onpickFolder={pickFolder}
       />
     {:else if settings.viewMode === "grid"}
-      <!-- Clicking the backdrop itself — not a card, not the header —
-           clears the selection. -->
-      <div
-        class="scroll"
-        onclick={(event) => {
-          if (event.target === event.currentTarget) session.setAllSelected(false);
-        }}
-        role="presentation"
-      >
-        <ViewHeader />
-
-        <div class="grid" style:--card-size="{settings.cardSize}px">
-          {#each session.images as image (image.path)}
-            <ImageCard
-              {image}
-              anySelected={session.hasSelection}
-              {showOriginal}
-              onopen={() => session.openViewer(image.path)}
-              ontoggleSelect={(event) => pick(image.path, event)}
-              oninfo={() => (infoPath = image.path)}
-              onreveal={() => revealItems(image.path)}
-              onremove={() => session.remove([image.path])}
-            />
-          {/each}
-        </div>
-      </div>
+      <ImageGrid {showOriginal} {...viewCallbacks} />
     {:else}
-      <div class="scroll">
-        <div class="list">
-          <ViewHeader />
-          {#each session.images as image, index (image.path)}
-            <ImageRow
-              {image}
-              striped={index % 2 === 1}
-              anySelected={session.hasSelection}
-              {showOriginal}
-              onopen={() => session.openViewer(image.path)}
-              ontoggleSelect={(event) => pick(image.path, event)}
-              oninfo={() => (infoPath = image.path)}
-              onreveal={() => revealItems(image.path)}
-              onremove={() => session.remove([image.path])}
-            />
-          {/each}
-        </div>
-      </div>
+      <ImageList {showOriginal} {...viewCallbacks} />
     {/if}
 
     {#if dragging && session.total > 0}
@@ -230,42 +195,6 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
-  }
-
-  .scroll {
-    flex: 1;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-  }
-
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(var(--card-size), 1fr));
-    gap: 16px;
-    /* The gutter on every side, not just the two the cards line up on: the
-       last row ends the same distance above the status bar as the first card
-       sits in from the window's left. The 16px gap between cards is a
-       separate measure and stays tighter than the margin around them. */
-    padding: var(--gutter);
-    align-content: start;
-  }
-
-  .list {
-    /* Column widths, shared by the header and the rows so the two stay on
-       one grid; both read them with a fallback of the same value. */
-    --col-thumb: 52px;
-    --col-meta: 92px;
-    --col-status: 104px;
-    --col-action: 28px;
-
-    display: flex;
-    flex-direction: column;
-    /* No gutter and no gap: the rows run edge to edge and butt up against
-       each other so the zebra stripes read as continuous bands. Each row
-       carries the gutter as its own padding instead. The bottom is the one
-       exception, and it is the grid's, so the last row ends the same distance
-       above the status bar in either view. */
-    padding: 0 0 var(--gutter);
   }
 
   .booting {

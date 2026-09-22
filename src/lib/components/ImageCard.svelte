@@ -2,21 +2,9 @@
   import Icon from "./Icon.svelte";
   import ImageMenu from "./ImageMenu.svelte";
   import StatusChip from "./StatusChip.svelte";
-  import type { ImageItem } from "$lib/types";
+  import type { ImageTileProps } from "./tile";
 
-  interface Props {
-    image: ImageItem;
-    /** Something in the roll is picked, so every card shows its box. */
-    anySelected: boolean;
-    /** Show the untouched scan instead of the developed result. */
-    showOriginal: boolean;
-    onopen: () => void;
-    ontoggleSelect: (event: MouseEvent) => void;
-    oninfo: () => void;
-    onreveal: () => void;
-    onremove: () => void;
-  }
-
+  /** One scan in grid view. Takes the same props a row does. */
   let {
     image,
     anySelected,
@@ -26,7 +14,7 @@
     oninfo,
     onreveal,
     onremove,
-  }: Props = $props();
+  }: ImageTileProps = $props();
 
   let source = $derived(showOriginal ? image.original : image.developed);
 </script>

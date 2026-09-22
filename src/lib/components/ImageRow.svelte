@@ -3,20 +3,12 @@
   import ImageMenu from "./ImageMenu.svelte";
   import StatusChip from "./StatusChip.svelte";
   import { formatBytes } from "$lib/format";
-  import type { ImageItem } from "$lib/types";
+  import type { ImageTileProps } from "./tile";
 
-  interface Props {
-    image: ImageItem;
+  /** One scan in list view. Takes a card's props plus the stripe. */
+  interface Props extends ImageTileProps {
     /** Every other row, so the eye can follow one across the columns. */
     striped: boolean;
-    /** Something in the roll is picked, so every row shows its box. */
-    anySelected: boolean;
-    showOriginal: boolean;
-    onopen: () => void;
-    ontoggleSelect: (event: MouseEvent) => void;
-    oninfo: () => void;
-    onreveal: () => void;
-    onremove: () => void;
   }
 
   let {
