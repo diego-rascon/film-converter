@@ -2,6 +2,8 @@ import type { OutputFormat, OutputSettings } from "$types";
 import { defaultOutputDir } from "$lib/api";
 
 const STORAGE_KEY = "film-converter.settings";
+/** Written once: `load` reads it and the listener below watches it. */
+const DARK_QUERY = "(prefers-color-scheme: dark)";
 
 export type ViewMode = "grid" | "list";
 /** `auto` follows the system; the other two override it. */
@@ -19,7 +21,7 @@ interface Persisted {
 }
 
 function systemTheme(): ResolvedTheme {
-  return window.matchMedia?.("(prefers-color-scheme: dark)").matches
+  return window.matchMedia?.(DARK_QUERY).matches
     ? "dark"
     : "light";
 }
@@ -94,7 +96,7 @@ class Settings {
    */
   #followSystemTheme() {
     window
-      .matchMedia?.("(prefers-color-scheme: dark)")
+      .matchMedia?.(DARK_QUERY)
       .addEventListener("change", (event) => {
         this.#systemTheme = event.matches ? "dark" : "light";
         if (this.theme === "auto") this.applyTheme();

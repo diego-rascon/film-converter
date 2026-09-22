@@ -37,3 +37,11 @@ export function describeError(reason: unknown, fallback = "Something went wrong"
   if (reason instanceof Error) return reason.message;
   return fallback;
 }
+
+/** A timestamp as a file manager would state it, in the system's locale. */
+export function formatDate(millis: number): string {
+  return new Date(millis).toLocaleString(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}

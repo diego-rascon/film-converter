@@ -1,6 +1,6 @@
 <script lang="ts">
   import { imageMetadata } from "$lib/api";
-  import { describeError, formatBytes } from "$utils/format";
+  import { describeError, formatBytes, formatDate } from "$utils/format";
   import type { ImageItem, ImageMetadata } from "$types";
 
   /**
@@ -60,13 +60,6 @@
   let megapixels = $derived(
     facts ? (facts.width * facts.height) / 1_000_000 : 0,
   );
-
-  function formatDate(millis: number): string {
-    return new Date(millis).toLocaleString(undefined, {
-      dateStyle: "medium",
-      timeStyle: "short",
-    });
-  }
 </script>
 
 {#if error}
