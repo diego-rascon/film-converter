@@ -33,9 +33,6 @@
 
   let infoImage = $derived(infoPath === null ? null : session.find(infoPath));
 
-  /** Anchor for shift-click range selection. */
-  let lastPicked: string | null = null;
-
   onMount(() => {
     const disposers: (() => void)[] = [];
 
@@ -74,26 +71,10 @@
     };
   });
 
-  /** Plain click picks one; shift extends from the last pick. */
+  /** A card's or a row's checkbox; the session owns the range and its anchor. */
   function pick(path: string, event: MouseEvent) {
     event.stopPropagation();
-
-    if (event.shiftKey && lastPicked) {
-      const from = session.images.findIndex((i) => i.path === lastPicked);
-      const to = session.images.findIndex((i) => i.path === path);
-      if (from >= 0 && to >= 0) {
-        const [start, end] = from < to ? [from, to] : [to, from];
-        const value = !session.find(path)!.selected;
-        for (let i = start; i <= end; i += 1) {
-          session.images[i].selected = value;
-        }
-        lastPicked = path;
-        return;
-      }
-    }
-
-    session.toggleSelected(path);
-    lastPicked = path;
+    session.pick(path, event.shiftKey);
   }
 
   function onkeydown(event: KeyboardEvent) {

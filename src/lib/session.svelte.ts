@@ -50,40 +50,32 @@ class Session {
   #requested = new Set<string>();
   /** Hands out `ImageItem.sequence`, so the import order stays recoverable. */
   #nextSequence = 0;
+  /** The last image picked, which a shift-click extends from. */
+  #anchor: string | null = null;
 
-  get total() {
-    return this.images.length;
-  }
-
-  get developed() {
-    return this.images.filter((i) => i.status === "done").length;
-  }
-
-  get failed() {
-    return this.images.filter((i) => i.status === "error").length;
-  }
-
-  get selected() {
-    return this.images.filter((i) => i.selected);
-  }
-
-  get hasSelection() {
-    return this.images.some((i) => i.selected);
-  }
-
-  get allSelected() {
-    return this.images.length > 0 && this.images.every((i) => i.selected);
-  }
-
+  /**
+   * These are `$derived`, not plain getters, because a getter recomputes on
+   * every read: `hasSelection` is passed to every card and every row, so a
+   * plain one would scan the whole roll once per image each time anything
+   * was picked. Derived, each is computed once per change and shared by
+   * everything that reads it.
+   */
+  total = $derived(this.images.length);
+  developed = $derived(this.images.filter((i) => i.status === "done").length);
+  failed = $derived(this.images.filter((i) => i.status === "error").length);
+  selected = $derived(this.images.filter((i) => i.selected));
+  hasSelection = $derived(this.selected.length > 0);
+  allSelected = $derived(
+    this.images.length > 0 && this.selected.length === this.images.length,
+  );
   /** Some but not all — the indeterminate state of the header checkbox. */
-  get partlySelected() {
-    return this.hasSelection && !this.allSelected;
-  }
+  partlySelected = $derived(this.hasSelection && !this.allSelected);
 
-  get viewerImage(): ImageItem | null {
-    if (this.viewerIndex === null) return null;
-    return this.images[this.viewerIndex] ?? null;
-  }
+  viewerImage = $derived(
+    this.viewerIndex === null
+      ? null
+      : (this.images[this.viewerIndex] ?? null),
+  );
 
   /** Adds paths (files or folders) to the session, skipping duplicates. */
   async add(paths: string[]) {
@@ -184,6 +176,7 @@ class Session {
     const removedCount = this.images.length - survivor.length;
     this.images = survivor;
     for (const path of removing) this.#requested.delete(path);
+    if (this.#anchor !== null && removing.has(this.#anchor)) this.#anchor = null;
 
     // Keep the viewer pointing at something sensible, or close it.
     if (this.viewerIndex !== null) {
@@ -219,6 +212,7 @@ class Session {
     this.#requested.clear();
     this.#previewQueue.length = 0;
     this.#nextSequence = 0;
+    this.#anchor = null;
     // Whatever the last notice was about went with the images, so the clear
     // speaks for itself rather than leaving the previous run's summary up.
     this.notice = cleared
@@ -229,6 +223,34 @@ class Session {
   toggleSelected(path: string) {
     const image = this.find(path);
     if (image) image.selected = !image.selected;
+  }
+
+  /**
+   * A click on an image's checkbox. Plain, it picks that one; with shift it
+   * extends from the last one picked, which is why the anchor is kept here
+   * rather than in the page — it belongs to the selection, and the range is
+   * read off `images`, the one order the app has.
+   */
+  pick(path: string, extend: boolean) {
+    const anchor = this.#anchor;
+
+    if (extend && anchor !== null) {
+      const from = this.images.findIndex((i) => i.path === anchor);
+      const to = this.images.findIndex((i) => i.path === path);
+
+      if (from >= 0 && to >= 0) {
+        const [start, end] = from < to ? [from, to] : [to, from];
+        // The range takes the value the clicked image is heading for, so a
+        // shift-click can clear a run as well as extend one.
+        const value = !this.images[to].selected;
+        for (let i = start; i <= end; i += 1) this.images[i].selected = value;
+        this.#anchor = path;
+        return;
+      }
+    }
+
+    this.toggleSelected(path);
+    this.#anchor = path;
   }
 
   setAllSelected(value: boolean) {
