@@ -1,0 +1,127 @@
+/* Design tokens: every colour, radius and measure the app draws with, and
+   the one place a theme is defined. Surfaces stay neutral grey on purpose —
+   any tint in the chrome would bias how the developed colours are judged. */
+:root {
+  --bg: #f4f4f5;
+  --surface: #ffffff;
+  --surface-2: #fafafa;
+  --surface-sunken: #ebebed;
+  --border: #dededf;
+  --border-strong: #c9c9cc;
+  --text: #17171a;
+  --text-muted: #6b6b73;
+  --text-faint: #96969e;
+
+  --accent: #c75f29;
+  --accent-hover: #ab5021;
+  --accent-text: #ffffff;
+  --accent-soft: rgba(199, 95, 41, 0.12);
+  /* The accent as a *fill* under white text, which wants more light in it
+     than the same accent drawn as text on a white surface does. Kept above
+     3:1 against --accent-text; anything brighter starts to wash the label
+     out. Light mode only — dark mode's accent already fills well. */
+  --accent-solid: #e0682c;
+  --accent-solid-hover: #c95c24;
+  /* The check glyph a filled checkbox carries: the same path Icon.svelte
+     draws, stroked in --accent-text. A background image cannot read a custom
+     property at paint time, so the colour is baked in and each theme carries
+     its own copy. */
+  --tick: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m20 6-11 11-5-5'/%3E%3C/svg%3E");
+
+  --danger: #c0392f;
+  --danger-soft: rgba(192, 57, 47, 0.1);
+  --success: #2f7d4f;
+
+  /* Every other row in the list view. Kept as an overlay rather than a flat
+     colour so it darkens whatever it sits on without being a fourth surface. */
+  --stripe: rgba(0, 0, 0, 0.032);
+
+  --overlay: rgba(24, 24, 27, 0.55);
+  /* What the fullscreen viewer lays over the blurred app behind it. It is a
+     black in both themes — a photo wants a dark surround whichever way the
+     chrome is painted — but a light app blurs to a much brighter field than
+     a dark one, so each theme needs its own amount of it. */
+  --viewer-backdrop: rgba(9, 9, 11, 0.74);
+
+  /* Anything that floats over a picture: a card's checkbox, the viewer's
+     before/after tags and its two control pods. None of them
+     can take their contrast from the surface tokens, because what is behind
+     them is a photograph — so they are all the same frosted black in both
+     themes. The blur does half the separating, which is why the fallback
+     below carries more black than the frosted values do. */
+  --glass: rgba(0, 0, 0, 0.6);
+  --glass-hover: rgba(0, 0, 0, 0.78);
+  --glass-blur: none;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.18), 0 4px 12px rgba(0, 0, 0, 0.08);
+
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
+
+  --header-height: 52px;
+  /* Save is a filled pill, so its own edge is its ink on all four sides: it
+     cannot pay anything back the way a glyph in an oversized box does, and it
+     has to sit on the gutter like everything else — the drop frame's corner is
+     directly above it, and two vertical edges a few pixels apart read as a
+     mistake. That fixes the bar's height at this button plus a gutter above
+     and below, so the button is the smaller of the two: 28px, the same square
+     a row's action button takes, rather than the toolbar's 34px. */
+  --action-height: 28px;
+  /* Derived, not chosen: a hard-coded height would quietly change the margin
+     under Save every time the button's size was touched. The titlebar needs no
+     such arithmetic and keeps its 52px — what ends it is a glyph in an
+     oversized box, whose ink already lands ~18px off the top. */
+  --status-height: calc(var(--action-height) + 2 * var(--gutter));
+  /* The one margin between the window's edge and anything inside it, on all
+     four sides: the counts in the toolbar and status bar, the images in either
+     view, Save's own edge, and what the viewer's picture and pods sit on. What
+     lands on it is a control's ink — a filled button's box is its ink, while a
+     glyph in an oversized box makes its bar pay the difference back. */
+  --gutter: 18px;
+
+  color-scheme: light;
+}
+
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  :root {
+    --glass: rgba(0, 0, 0, 0.42);
+    --glass-hover: rgba(0, 0, 0, 0.6);
+    --glass-blur: blur(16px) saturate(1.4);
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #0e0e10;
+  --surface: #17171a;
+  --surface-2: #1d1d21;
+  --surface-sunken: #121214;
+  --border: #2a2a2f;
+  --border-strong: #3a3a41;
+  --text: #f2f2f3;
+  --text-muted: #9c9ca5;
+  --text-faint: #6c6c76;
+
+  --accent: #e4773f;
+  --accent-hover: #ed8c5a;
+  --accent-text: #1a1108;
+  --accent-soft: rgba(228, 119, 63, 0.16);
+  --accent-solid: var(--accent);
+  --accent-solid-hover: var(--accent-hover);
+  --tick: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231a1108' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m20 6-11 11-5-5'/%3E%3C/svg%3E");
+
+  --danger: #e5675c;
+  --danger-soft: rgba(229, 103, 92, 0.14);
+  --success: #5cba84;
+
+  --stripe: rgba(255, 255, 255, 0.045);
+
+  --overlay: rgba(0, 0, 0, 0.72);
+  --viewer-backdrop: rgba(9, 9, 11, 0.55);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.6);
+
+  color-scheme: dark;
+}

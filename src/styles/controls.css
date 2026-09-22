@@ -1,0 +1,388 @@
+/* The controls more than one component draws: buttons, form fields, the
+   caps label, the segmented switch, popovers and the loading shimmer. A
+   rule earns its place here the second component that needs it. */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease,
+    color 0.12s ease;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--accent-solid);
+  border-color: var(--accent-solid);
+  color: var(--accent-text);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-solid-hover);
+  border-color: var(--accent-solid-hover);
+}
+
+.btn-ghost {
+  border-color: transparent;
+  background: transparent;
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: var(--surface-sunken);
+  border-color: transparent;
+}
+
+/* Square icon-only button. */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+
+.icon-btn:hover:not(:disabled) {
+  background: var(--surface-sunken);
+  color: var(--text);
+}
+
+.icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Destructive, wherever it appears: the toolbar's remove, the viewer's, the
+   window's close button. Muted at rest and red only under the pointer,
+   because all three are on screen the whole time next to nothing that
+   undoes them. */
+.icon-btn.danger:hover:not(:disabled) {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+/* The compact pair, for a bar that has to stay out of the way of what is
+   under it — the notice panel, the viewer's details header. */
+.btn.small {
+  height: 26px;
+  padding: 0 9px;
+  font-size: 12px;
+  flex: none;
+}
+
+.icon-btn.small {
+  width: 26px;
+  height: 26px;
+}
+
+/* The small uppercase label this app puts over a group of controls, a
+   column of values or a panel. `.field-label` is the same type with the
+   spacing a form field wants under it. */
+.caps,
+.field-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 6px;
+}
+
+/* A row of mutually exclusive choices sunk into a track: the toolbar's
+   grid/list switch, the viewer's before/after switch, the theme picker.
+   The track and the pressed state are one thing in all three; only the
+   size of a button differs, which each use sets for itself. Never
+   squeezed — whatever shares the bar gives way first. */
+.segmented {
+  display: flex;
+  gap: 2px;
+  flex: none;
+  white-space: nowrap;
+  padding: 2px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+}
+
+.segmented button {
+  /* A step tighter than the track's own radius, which is what makes the
+     pressed button read as sitting inside it. */
+  border-radius: 5px;
+  /* A use that wants a different resting colour sets the property on the
+     track rather than restating this rule: Svelte scopes a component's
+     selector with `:where()`, which adds no specificity, so a local
+     `.segmented button { color }` would tie with the hover and pressed
+     rules below and — being later in the cascade — silently win both. */
+  color: var(--segmented-rest, var(--text-muted));
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+
+.segmented button:hover {
+  color: var(--text);
+}
+
+.segmented button.active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ---- popovers ----
+
+   A panel hung off the control that owns it. The owner is the
+   `.popover-host`, which is what the panel pins itself to; closing is the
+   owner's job and follows one etiquette, `dismissOnOutside` in
+   [popover.svelte.ts](src/lib/popover.svelte.ts). */
+.popover-host {
+  position: relative;
+}
+
+.popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  /* Right-aligned by default: a popover's button is usually at the right
+     end of a bar, a card or a row, so the panel grows inwards rather than
+     off the window. `.left` is for one at the other end. */
+  right: 0;
+  z-index: 40;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  animation: drop-in 0.12s ease;
+}
+
+.popover.left {
+  left: 0;
+  right: auto;
+}
+
+/* Near the bottom of the window there is nothing below to open into. */
+.popover.up {
+  top: auto;
+  bottom: calc(100% + 6px);
+  animation-name: lift-in;
+}
+
+/* A popover whose content is a list of actions. */
+.menu {
+  padding: 5px;
+}
+
+.menu button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  text-align: left;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.menu button:hover {
+  background: var(--surface-sunken);
+}
+
+.menu button svg {
+  color: var(--text-faint);
+}
+
+.menu button.danger,
+.menu button.danger svg {
+  color: var(--danger);
+}
+
+.menu button.danger:hover {
+  background: var(--danger-soft);
+}
+
+.menu .separator {
+  height: 1px;
+  margin: 5px 4px;
+  background: var(--border);
+}
+
+/* The placeholder a thumbnail shows while its preview decodes, in both
+   image views. */
+.shimmer {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    100deg,
+    var(--surface-sunken) 30%,
+    var(--surface-2) 50%,
+    var(--surface-sunken) 70%
+  );
+  background-size: 220% 100%;
+  animation: sweep 1.3s ease-in-out infinite;
+}
+
+select,
+input[type="text"] {
+  width: 100%;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+
+select:hover,
+input[type="text"]:hover {
+  border-color: var(--border-strong);
+}
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 20px;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -6px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+input[type="range"]::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--surface);
+}
+
+/* Drawn rather than left to the platform: `accent-color` tints the tick but
+   leaves the box the shape and the grey the toolkit picked, which is a
+   different radius and a different border from every other control here.
+   Both states are painted as backgrounds on the input itself — WebKit does
+   not reliably give a form control its ::before, and a tick that silently
+   fails to render is worse than a heavier rule. */
+input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  flex: none;
+  /* The UA margin would push the box 4px past whatever it is meant to line
+     up with — the gutter, in both image views. */
+  margin: 0;
+  border: 1px solid var(--border-strong);
+  /* A hair under --radius-sm, which is drawn for 34px controls and starts to
+     read as a circle on a box this small. */
+  border-radius: 5px;
+  background: var(--surface) no-repeat center;
+  cursor: pointer;
+  transition:
+    background-color 0.12s ease,
+    border-color 0.12s ease;
+}
+
+/* One step darker than the resting border, the way .btn answers a hover. */
+input[type="checkbox"]:hover:not(:disabled) {
+  border-color: var(--text-faint);
+}
+
+input[type="checkbox"]:checked {
+  background-color: var(--accent-solid);
+  background-image: var(--tick);
+  /* Sized to the padding box, so the glyph keeps the icon's own margins. */
+  background-size: contain;
+  border-color: var(--accent-solid);
+}
+
+/* Some but not all: a bar rather than a tick, and the same fill, since the
+   box is still reporting a selection. */
+input[type="checkbox"]:indeterminate {
+  background-color: var(--accent-solid);
+  background-image: linear-gradient(
+    var(--accent-text),
+    var(--accent-text)
+  );
+  background-size: 8px 2px;
+  border-color: var(--accent-solid);
+}
+
+input[type="checkbox"]:checked:hover:not(:disabled),
+input[type="checkbox"]:indeterminate:hover:not(:disabled) {
+  background-color: var(--accent-solid-hover);
+  border-color: var(--accent-solid-hover);
+}
+
+input[type="checkbox"]:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Visible to screen readers only. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

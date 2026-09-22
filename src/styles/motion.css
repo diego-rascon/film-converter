@@ -1,0 +1,55 @@
+/* Every animation in the app, and the one switch that turns them all off.
+   Declared here rather than per component: five of them were being restated
+   in eleven places. A component that wants a variation declares its own next
+   to the rule that uses it — `dialog-in` in Modal.svelte is the only one. */
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* A popover leaving the control it belongs to, and the same travel reversed
+   for one that had to open upwards instead. */
+@keyframes drop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes lift-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes sweep {
+  to {
+    background-position: -120% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
