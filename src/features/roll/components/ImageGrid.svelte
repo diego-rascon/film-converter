@@ -43,12 +43,6 @@
 </div>
 
 <style>
-  .scroll {
-    flex: 1;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-  }
-
   .grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(var(--card-size), 1fr));

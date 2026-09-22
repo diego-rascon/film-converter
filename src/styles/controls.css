@@ -386,3 +386,13 @@ input[type="checkbox"]:disabled {
   white-space: nowrap;
   border: 0;
 }
+
+/* The scroller both image views put their header and their images in. It is
+   the same box in each — the view's own rules only lay out what is inside
+   it — and `overscroll-behavior` keeps a flick at the end of the roll from
+   scrolling the window behind it. */
+.scroll {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}

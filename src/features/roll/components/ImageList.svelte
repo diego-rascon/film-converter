@@ -31,12 +31,6 @@
 </div>
 
 <style>
-  .scroll {
-    flex: 1;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-  }
-
   .list {
     /* Column widths, read by both `ViewHeader` and `ImageRow` with a
        fallback of the same value, so the two stay on one grid. A column
