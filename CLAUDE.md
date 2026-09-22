@@ -55,6 +55,84 @@ src/
 └── utils/          $utils — pure helpers
 ```
 
+The full listing, for reference — this drifts as files are added, so treat the folder
+rule above as the source of truth and this as a snapshot of it:
+
+```
+src/
+├── app/
+│   ├── +layout.svelte
+│   ├── +layout.ts
+│   └── +page.svelte
+├── components/
+│   ├── image/
+│   │   ├── ImageFacts.svelte
+│   │   └── StatusChip.svelte
+│   ├── overlay/
+│   │   ├── InfoModal.svelte
+│   │   └── Modal.svelte
+│   ├── window/
+│   │   ├── WindowControls.svelte
+│   │   └── WindowResizeEdges.svelte
+│   └── Icon.svelte
+├── data/
+│   ├── formats.ts
+│   └── preview.ts
+├── features/
+│   ├── roll/
+│   │   ├── components/
+│   │   │   ├── DropZone.svelte
+│   │   │   ├── ImageCard.svelte
+│   │   │   ├── ImageGrid.svelte
+│   │   │   ├── ImageList.svelte
+│   │   │   ├── ImageMenu.svelte
+│   │   │   ├── ImageRow.svelte
+│   │   │   └── ViewHeader.svelte
+│   │   ├── types/
+│   │   │   └── index.ts
+│   │   └── utils/
+│   │       └── tile.ts
+│   ├── shell/
+│   │   └── components/
+│   │       ├── AboutModal.svelte
+│   │       ├── AppHeader.svelte
+│   │       ├── CreditsModal.svelte
+│   │       ├── NoticePanel.svelte
+│   │       ├── SettingsPanel.svelte
+│   │       ├── StatusBar.svelte
+│   │       └── Toolbar.svelte
+│   └── viewer/
+│       ├── components/
+│       │   ├── ViewerDetails.svelte
+│       │   ├── ViewerHeader.svelte
+│       │   ├── ViewerPod.svelte
+│       │   ├── ViewerStage.svelte
+│       │   └── Viewer.svelte
+│       ├── state/
+│       │   └── zoom.svelte.ts
+│       └── types/
+│           └── index.ts
+├── hooks/
+│   └── popover.svelte.ts
+├── lib/
+│   ├── api.ts
+│   └── files.ts
+├── state/
+│   ├── session.svelte.ts
+│   └── settings.svelte.ts
+├── styles/
+│   ├── app.css
+│   ├── base.css
+│   ├── controls.css
+│   ├── motion.css
+│   └── tokens.css
+├── types/
+│   └── index.ts
+├── utils/
+│   └── format.ts
+└── app.html
+```
+
 A feature owns everything only it uses, which is why `ZoomPan`
 ([viewer/state/zoom.svelte.ts](src/features/viewer/state/zoom.svelte.ts)) and the
 viewer's `Mode` ([viewer/types/index.ts](src/features/viewer/types/index.ts)) sit
