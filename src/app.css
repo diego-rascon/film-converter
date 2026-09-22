@@ -1,8 +1,0 @@
-/* The app's stylesheet, in four parts. Components style only what is their
-   own; anything a second component needs moves into `controls.css`, and the
-   values they all reach for are tokens in `tokens.css`. */
-
-@import "./styles/tokens.css";
-@import "./styles/base.css";
-@import "./styles/motion.css";
-@import "./styles/controls.css";

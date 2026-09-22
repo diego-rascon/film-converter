@@ -1,7 +1,7 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { openPath, revealItemInDir } from "@tauri-apps/plugin-opener";
 
-import { session } from "./session.svelte";
+import { session } from "$state/session.svelte";
 
 /**
  * Everything the app asks the desktop to do: the two file dialogs and the

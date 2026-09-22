@@ -5,7 +5,7 @@ import type {
   ImportedImage,
   OutputSettings,
   Preview,
-} from "./types";
+} from "$types";
 
 /** Expands dropped or picked paths into a flat list of supported images. */
 export function importPaths(paths: string[]): Promise<ImportedImage[]> {

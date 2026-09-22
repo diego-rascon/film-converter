@@ -12,6 +12,25 @@ const config = {
     adapter: adapter({
       fallback: "index.html",
     }),
+
+    // The routes live in `src/app`, beside the other top-level folders, rather
+    // than in SvelteKit's default `src/routes`.
+    files: {
+      routes: "src/app",
+    },
+
+    // One alias per top-level folder, so an import says which layer it crosses
+    // into. `$lib` is SvelteKit's own and keeps its default, `src/lib`.
+    // Inside a feature, siblings are imported relatively.
+    alias: {
+      $components: "src/components",
+      $features: "src/features",
+      $hooks: "src/hooks",
+      $state: "src/state",
+      $styles: "src/styles",
+      $types: "src/types",
+      $utils: "src/utils",
+    },
   },
 };
 
