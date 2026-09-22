@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from "./Icon.svelte";
+  import { dismissOnOutside } from "$lib/popover.svelte";
 
   /**
    * The per-image actions, behind one three-dot button. It is the same menu
@@ -41,34 +42,17 @@
   }
 
   /**
-   * Same popover etiquette as the toolbar's, but bound only while the menu is
-   * open: there is one of these per image, and a session holds hundreds, so
-   * they cannot each keep a pair of window listeners alive. "Outside" is this
-   * menu rather than any popover, which is what closes one card's menu when
-   * the next card's button is pressed.
+   * The shared etiquette, with one difference from the toolbar's: "inside"
+   * is this menu rather than any popover, which is what closes one image's
+   * menu when the next image's button is pressed.
    */
-  $effect(() => {
-    if (!open) return;
-
-    const onpointerdown = (event: PointerEvent) => {
-      if (host?.contains(event.target as Node)) return;
-      open = false;
-    };
-
-    const onkeydown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      // Swallowed so Escape does not also clear the selection underneath.
-      event.stopPropagation();
-      open = false;
-    };
-
-    window.addEventListener("pointerdown", onpointerdown);
-    window.addEventListener("keydown", onkeydown, true);
-    return () => {
-      window.removeEventListener("pointerdown", onpointerdown);
-      window.removeEventListener("keydown", onkeydown, true);
-    };
-  });
+  $effect(() =>
+    dismissOnOutside({
+      open,
+      isInside: (target) => Boolean(host?.contains(target)),
+      close: () => (open = false),
+    }),
+  );
 </script>
 
 <!-- No `data-popover`: this menu closes itself (see above), and leaving the

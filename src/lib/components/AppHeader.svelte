@@ -2,6 +2,7 @@
   import Icon from "./Icon.svelte";
   import SettingsPanel from "./SettingsPanel.svelte";
   import WindowControls from "./WindowControls.svelte";
+  import { PopoverGroup, dismissOnOutside } from "$lib/popover.svelte";
   import { session } from "$lib/session.svelte";
 
   interface Props {
@@ -13,38 +14,30 @@
 
   let { oncredits, onabout, onpickFiles, onpickFolder }: Props = $props();
 
-  let menuOpen = $state(false);
-  let settingsOpen = $state(false);
-  let addOpen = $state(false);
+  /**
+   * One name rather than three booleans: the bar's popovers are mutually
+   * exclusive, and holding the open one by name makes that true by
+   * construction instead of by remembering to close the other two at every
+   * call site.
+   */
+  const popovers = new PopoverGroup<"add" | "settings" | "menu">();
+
+  $effect(() =>
+    dismissOnOutside({
+      open: popovers.current !== null,
+      // Any popover on the bar counts as inside: pressing one's button is
+      // what swaps to it, and that press must not also be read as a
+      // dismissal of the one it is replacing.
+      isInside: (target) => Boolean(target?.closest("[data-popover]")),
+      close: () => popovers.close(),
+    }),
+  );
 
   function choose(action: () => void) {
-    menuOpen = false;
-    addOpen = false;
+    popovers.close();
     action();
   }
-
-  /** Closes whichever popover is open when focus or the pointer leaves it. */
-  function onwindowpointerdown(event: PointerEvent) {
-    const target = event.target as HTMLElement | null;
-    if (target?.closest("[data-popover]")) return;
-    menuOpen = false;
-    settingsOpen = false;
-    addOpen = false;
-  }
-
-  function onwindowkeydown(event: KeyboardEvent) {
-    if (event.key !== "Escape") return;
-    if (menuOpen || settingsOpen || addOpen) event.stopPropagation();
-    menuOpen = false;
-    settingsOpen = false;
-    addOpen = false;
-  }
 </script>
-
-<svelte:window
-  on:pointerdown={onwindowpointerdown}
-  on:keydown|capture={onwindowkeydown}
-/>
 
 <header data-tauri-drag-region>
   <!-- Add and Clear act on the session itself, not on a selection or a view,
@@ -53,49 +46,45 @@
        and the right cluster is pushed over by `margin-left: auto`. -->
   {#if session.total > 0}
     <div class="lead">
-    <div class="popover-host" data-popover>
+      <div class="popover-host" data-popover>
+        <button
+          class="btn btn-ghost add"
+          class:open={popovers.isOpen("add")}
+          onclick={() => popovers.toggle("add")}
+          aria-expanded={popovers.isOpen("add")}
+          aria-haspopup="menu"
+          title="Add scans"
+        >
+          <Icon name="plus" size={15} />
+          Add
+          <Icon name="chevronDown" size={13} />
+        </button>
+
+        {#if popovers.isOpen("add")}
+          <div class="popover menu left" role="menu">
+            <button role="menuitem" onclick={() => choose(onpickFiles)}>
+              <Icon name="image" size={15} />
+              Add images…
+            </button>
+            <button role="menuitem" onclick={() => choose(onpickFolder)}>
+              <Icon name="folder" size={15} />
+              Add folder…
+            </button>
+          </div>
+        {/if}
+      </div>
+
       <button
-        class="btn btn-ghost add"
-        class:open={addOpen}
-        onclick={() => {
-          addOpen = !addOpen;
-          menuOpen = false;
-          settingsOpen = false;
-        }}
-        aria-expanded={addOpen}
-        aria-haspopup="menu"
-        title="Add scans"
+        class="btn btn-ghost clear"
+        onclick={() => session.clear()}
+        disabled={session.developing}
+        title={session.developing
+          ? "Cancel the run before clearing the session"
+          : "Remove every image and start again"}
       >
-        <Icon name="plus" size={15} />
-        Add
-        <Icon name="chevronDown" size={13} />
+        <Icon name="reload" size={15} />
+        Clear
       </button>
-
-      {#if addOpen}
-        <div class="popover menu left" role="menu">
-          <button role="menuitem" onclick={() => choose(onpickFiles)}>
-            <Icon name="image" size={15} />
-            Add images…
-          </button>
-          <button role="menuitem" onclick={() => choose(onpickFolder)}>
-            <Icon name="folder" size={15} />
-            Add folder…
-          </button>
-        </div>
-      {/if}
-    </div>
-
-    <button
-      class="btn btn-ghost clear"
-      onclick={() => session.clear()}
-      disabled={session.developing}
-      title={session.developing
-        ? "Cancel the run before clearing the session"
-        : "Remove every image and start again"}
-    >
-      <Icon name="reload" size={15} />
-      Clear
-    </button>
     </div>
   {/if}
 
@@ -105,19 +94,15 @@
     <div class="popover-host" data-popover>
       <button
         class="icon-btn"
-        class:active={settingsOpen}
-        onclick={() => {
-          settingsOpen = !settingsOpen;
-          menuOpen = false;
-          addOpen = false;
-        }}
+        class:active={popovers.isOpen("settings")}
+        onclick={() => popovers.toggle("settings")}
         aria-label="Settings"
-        aria-expanded={settingsOpen}
+        aria-expanded={popovers.isOpen("settings")}
         title="Settings"
       >
         <Icon name="settings" />
       </button>
-      {#if settingsOpen}
+      {#if popovers.isOpen("settings")}
         <div class="popover wide">
           <SettingsPanel />
         </div>
@@ -127,18 +112,14 @@
     <div class="popover-host" data-popover>
       <button
         class="icon-btn"
-        class:active={menuOpen}
-        onclick={() => {
-          menuOpen = !menuOpen;
-          settingsOpen = false;
-          addOpen = false;
-        }}
+        class:active={popovers.isOpen("menu")}
+        onclick={() => popovers.toggle("menu")}
         aria-label="Menu"
-        aria-expanded={menuOpen}
+        aria-expanded={popovers.isOpen("menu")}
       >
         <Icon name="menu" />
       </button>
-      {#if menuOpen}
+      {#if popovers.isOpen("menu")}
         <div class="popover menu" role="menu">
           <button role="menuitem" onclick={() => choose(oncredits)}>
             <Icon name="users" size={15} />
