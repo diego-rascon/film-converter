@@ -1,6 +1,6 @@
 <script lang="ts">
   import { imageMetadata } from "$lib/api";
-  import { formatBytes } from "$lib/session.svelte";
+  import { describeError, formatBytes } from "$lib/format";
   import type { ImageItem, ImageMetadata } from "$lib/types";
 
   /**
@@ -49,7 +49,7 @@
         if (current) facts = found;
       })
       .catch((reason) => {
-        if (current) error = describe(reason);
+        if (current) error = describeError(reason, "Could not read this file");
       });
 
     return () => {
@@ -60,12 +60,6 @@
   let megapixels = $derived(
     facts ? (facts.width * facts.height) / 1_000_000 : 0,
   );
-
-  function describe(reason: unknown): string {
-    if (typeof reason === "string") return reason;
-    if (reason instanceof Error) return reason.message;
-    return "Could not read this file";
-  }
 
   function formatDate(millis: number): string {
     return new Date(millis).toLocaleString(undefined, {

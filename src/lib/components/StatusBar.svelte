@@ -3,7 +3,8 @@
   import { openPath } from "@tauri-apps/plugin-opener";
 
   import Icon from "./Icon.svelte";
-  import { session, plural } from "$lib/session.svelte";
+  import { counted } from "$lib/format";
+  import { session } from "$lib/session.svelte";
   import { settings } from "$lib/settings.svelte";
 
   /** Saving acts on the selection when there is one, otherwise everything. */
@@ -56,7 +57,7 @@
   {/if}
 
   {#if session.total > 0}
-    <span class="count">{session.total} {plural(session.total, "image")}</span>
+    <span class="count">{counted(session.total, "image")}</span>
   {/if}
 
   <div class="right">

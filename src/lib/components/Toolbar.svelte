@@ -1,6 +1,7 @@
 <script lang="ts">
   import Icon from "./Icon.svelte";
-  import { session, plural } from "$lib/session.svelte";
+  import { counted } from "$lib/format";
+  import { session } from "$lib/session.svelte";
   import { settings } from "$lib/settings.svelte";
 
   interface Props {
@@ -23,9 +24,7 @@
   /** The properties dialog is about one file, so it needs exactly one. */
   let single = $derived(selectedCount === 1);
 
-  let subject = $derived(
-    `${selectedCount} ${plural(selectedCount, "image")}`,
-  );
+  let subject = $derived(counted(selectedCount, "image"));
 </script>
 
 <div class="toolbar">

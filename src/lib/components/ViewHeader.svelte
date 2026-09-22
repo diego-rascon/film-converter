@@ -1,6 +1,7 @@
 <script lang="ts">
   import Icon from "./Icon.svelte";
-  import { session, plural } from "$lib/session.svelte";
+  import { counted } from "$lib/format";
+  import { session } from "$lib/session.svelte";
   import { settings } from "$lib/settings.svelte";
 
   /**
@@ -50,10 +51,7 @@
   />
 
   {#if selectedCount > 0}
-    <span class="count">
-      {selectedCount}
-      {plural(selectedCount, "image")} selected
-    </span>
+    <span class="count">{counted(selectedCount, "image")} selected</span>
   {:else if list}
     <div class="cols">
       <span class="thumb-slot"></span>

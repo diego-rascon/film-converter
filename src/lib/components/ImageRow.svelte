@@ -2,7 +2,7 @@
   import Icon from "./Icon.svelte";
   import ImageMenu from "./ImageMenu.svelte";
   import StatusChip from "./StatusChip.svelte";
-  import { formatBytes } from "$lib/session.svelte";
+  import { formatBytes } from "$lib/format";
   import type { ImageItem } from "$lib/types";
 
   interface Props {

@@ -5,6 +5,7 @@ import {
   developBatch,
   importPaths,
 } from "./api";
+import { counted, describeError } from "./format";
 import { settings } from "./settings.svelte";
 import type { BatchProgress, BatchReport, ImageItem } from "./types";
 
@@ -118,11 +119,11 @@ class Session {
       this.#applySort();
       this.notice = {
         kind: "info",
-        text: `Added ${fresh.length} ${plural(fresh.length, "image")}`,
+        text: `Added ${counted(fresh.length, "image")}`,
       };
       this.queuePreviews(fresh.map((f) => f.path));
     } catch (error) {
-      this.notice = { kind: "error", text: describe(error) };
+      this.notice = { kind: "error", text: describeError(error) };
     } finally {
       this.importing = false;
     }
@@ -193,7 +194,7 @@ class Session {
     if (removedCount > 0) {
       this.notice = {
         kind: "info",
-        text: `Removed ${removedCount} ${plural(removedCount, "image")}`,
+        text: `Removed ${counted(removedCount, "image")}`,
       };
     }
   }
@@ -221,7 +222,7 @@ class Session {
     // Whatever the last notice was about went with the images, so the clear
     // speaks for itself rather than leaving the previous run's summary up.
     this.notice = cleared
-      ? { kind: "info", text: `Cleared ${cleared} ${plural(cleared, "image")}` }
+      ? { kind: "info", text: `Cleared ${counted(cleared, "image")}` }
       : null;
   }
 
@@ -336,7 +337,7 @@ class Session {
     this.failures = [];
     this.notice = {
       kind: "info",
-      text: `Developing ${targets.length} ${plural(targets.length, "image")}…`,
+      text: `Developing ${counted(targets.length, "image")}…`,
     };
 
     try {
@@ -356,7 +357,7 @@ class Session {
       for (const image of targets) {
         if (image.status === "developing") image.status = "pending";
       }
-      this.notice = { kind: "error", text: describe(error) };
+      this.notice = { kind: "error", text: describeError(error) };
     } finally {
       this.developing = false;
     }
@@ -384,31 +385,8 @@ function summarise(report: BatchReport, requested: number): Notice {
   }
   return {
     kind: "success",
-    text: `Developed ${report.succeeded} ${plural(report.succeeded, "image")}`,
+    text: `Developed ${counted(report.succeeded, "image")}`,
   };
-}
-
-export function plural(count: number, word: string): string {
-  return count === 1 ? word : `${word}s`;
-}
-
-/** A byte count as a file manager would state it. */
-export function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  const units = ["KB", "MB", "GB"];
-  let value = bytes / 1024;
-  let unit = 0;
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024;
-    unit += 1;
-  }
-  return `${value.toFixed(value < 10 ? 1 : 0)} ${units[unit]}`;
-}
-
-function describe(error: unknown): string {
-  if (typeof error === "string") return error;
-  if (error instanceof Error) return error.message;
-  return "Something went wrong";
 }
 
 export const session = new Session();

@@ -1,6 +1,7 @@
 <script lang="ts">
   import Icon from "./Icon.svelte";
-  import { session, plural } from "$lib/session.svelte";
+  import { counted } from "$lib/format";
+  import { session } from "$lib/session.svelte";
 
   /** How long a notice that asks nothing of the user stays up. */
   const DISMISS_MS = 4500;
@@ -62,10 +63,7 @@
           <span class="text">{notice.text}</span>
         {:else}
           <span class="glyph error"><Icon name="alert" size={15} /></span>
-          <span class="text">
-            {failures.length}
-            {plural(failures.length, "image")} failed
-          </span>
+          <span class="text">{counted(failures.length, "image")} failed</span>
         {/if}
 
         {#if failures.length > 0}
