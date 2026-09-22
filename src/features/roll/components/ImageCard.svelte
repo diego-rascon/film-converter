@@ -3,13 +3,14 @@
   import ImageMenu from "./ImageMenu.svelte";
   import StatusChip from "$components/image/StatusChip.svelte";
   import type { ImageTileProps } from "../types";
-  import { previewSource } from "../utils/tile";
+  import { openOnEnter, previewSource } from "../utils/tile";
 
   /** One scan in grid view. Takes the same props a row does. */
   let {
     image,
     anySelected,
     showOriginal,
+    onpick,
     onopen,
     ontoggleSelect,
     oninfo,
@@ -22,9 +23,16 @@
 
 <figure class:selected={image.selected}>
   <div class="frame">
-    <!-- The whole thumbnail opens the viewer; the checkbox below handles
-         selection, so this button carries only the "open" role. -->
-    <button class="surface" onclick={onopen} aria-label="Open {image.name}">
+    <!-- A file manager's gestures: one click on the thumbnail picks the
+         image, a double click opens it. The checkbox below is the way to
+         build a selection without holding a key down. -->
+    <button
+      class="surface tile"
+      onclick={onpick}
+      ondblclick={onopen}
+      onkeydown={openOnEnter(onopen)}
+      aria-label="Open {image.name}"
+    >
       {#if image.previewStatus === "ready" && source}
         <img src={source} alt={image.name} loading="lazy" />
       {:else if image.previewStatus === "error"}

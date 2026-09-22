@@ -396,3 +396,10 @@ input[type="checkbox"]:disabled {
   overflow-y: auto;
   overscroll-behavior: contain;
 }
+
+/* The clickable face of an image in either view — a card's thumbnail, a row's
+   thumbnail, name and figures. A double click opens the image, so the second
+   click must not leave a text selection dragged across the name behind it. */
+.tile {
+  user-select: none;
+}

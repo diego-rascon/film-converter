@@ -11,6 +11,9 @@ export interface ImageTileProps {
   anySelected: boolean;
   /** Show the untouched scan instead of the developed result. */
   showOriginal: boolean;
+  /** The image itself was clicked: pick it, per the modifiers held. */
+  onpick: (event: MouseEvent) => void;
+  /** It was double-clicked, or Enter was pressed on it: open the viewer. */
   onopen: () => void;
   ontoggleSelect: (event: MouseEvent) => void;
   oninfo: () => void;

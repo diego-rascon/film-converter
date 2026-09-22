@@ -13,6 +13,18 @@ import type { BatchProgress, BatchReport, ImageItem } from "$types";
 export type SortKey = "added" | "name" | "size";
 export type SortDirection = "asc" | "desc";
 
+/**
+ * Which modifiers a click on an image carried. The views are file-explorer
+ * shaped, so the two flags are the two a file manager reads: `toggle` is
+ * ctrl/cmd — or a tick box, which is a toggle by its nature — and leaves the
+ * rest of the selection alone, and `extend` is shift, which takes the whole
+ * run from the anchor. Neither means the click *is* the selection.
+ */
+export interface PickModifiers {
+  toggle?: boolean;
+  extend?: boolean;
+}
+
 /** A message shown in the floating notice panel over the images. */
 export interface Notice {
   kind: "info" | "error" | "success";
@@ -219,12 +231,14 @@ class Session {
   }
 
   /**
-   * A click on an image's checkbox. Plain, it picks that one; with shift it
-   * extends from the last one picked, which is why the anchor is kept here
-   * rather than in the page — it belongs to the selection, and the range is
+   * A click on an image. Plain, it is the whole selection — everything else
+   * lets go, the way clicking a file in a file manager does; with `toggle` it
+   * joins or leaves the selection without disturbing it; with `extend` it
+   * takes the run from the last image picked. The anchor is kept here rather
+   * than in the page because it belongs to the selection, and the range is
    * read off `images`, the one order the app has.
    */
-  pick(path: string, extend: boolean) {
+  pick(path: string, { toggle = false, extend = false }: PickModifiers = {}) {
     const anchor = this.#anchor;
 
     if (extend && anchor !== null) {
@@ -233,16 +247,27 @@ class Session {
 
       if (from >= 0 && to >= 0) {
         const [start, end] = from < to ? [from, to] : [to, from];
-        // The range takes the value the clicked image is heading for, so a
-        // shift-click can clear a run as well as extend one.
-        const value = !this.images[to].selected;
+        // Toggling, the run takes the value the clicked image is heading for,
+        // so a shift-click can clear a run as well as extend one. Replacing,
+        // the run *is* the selection. Either way the anchor stays where it
+        // was: a second shift-click grows or shrinks the same run rather than
+        // starting a new one from the end of the last.
+        const value = toggle ? !this.images[to].selected : true;
+        if (!toggle) this.setAllSelected(false);
         for (let i = start; i <= end; i += 1) this.images[i].selected = value;
-        this.#anchor = path;
         return;
       }
     }
 
-    this.toggleSelected(path);
+    if (toggle) {
+      this.toggleSelected(path);
+    } else {
+      // Not a toggle: a plain click on the one already picked keeps it picked
+      // rather than letting go, since it is a selection of one being made.
+      this.setAllSelected(false);
+      const image = this.find(path);
+      if (image) image.selected = true;
+    }
     this.#anchor = path;
   }
 

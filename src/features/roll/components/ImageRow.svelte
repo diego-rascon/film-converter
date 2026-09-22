@@ -4,7 +4,7 @@
   import StatusChip from "$components/image/StatusChip.svelte";
   import { formatBytes } from "$utils/format";
   import type { ImageTileProps } from "../types";
-  import { previewSource } from "../utils/tile";
+  import { openOnEnter, previewSource } from "../utils/tile";
 
   /** One scan in list view. Takes a card's props plus the stripe. */
   interface Props extends ImageTileProps {
@@ -17,6 +17,7 @@
     striped,
     anySelected,
     showOriginal,
+    onpick,
     onopen,
     ontoggleSelect,
     oninfo,
@@ -40,7 +41,15 @@
     aria-label="Select {image.name}"
   />
 
-  <button class="open" onclick={onopen}>
+  <!-- One click picks the row, a double click opens it, as in a file
+       manager. It stops short of the status chip and the menu, which are the
+       row's own controls. -->
+  <button
+    class="open tile"
+    onclick={onpick}
+    ondblclick={onopen}
+    onkeydown={openOnEnter(onopen)}
+  >
     <span class="thumb">
       {#if image.previewStatus === "ready" && source}
         <img src={source} alt="" loading="lazy" />

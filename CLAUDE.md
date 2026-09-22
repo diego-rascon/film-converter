@@ -170,8 +170,12 @@ State lives in two singleton classes using Svelte 5 runes, exported as instances
   ranges all read it — so `sortBy` reorders the array itself rather than handing the list
   a second view of the same images. `ImageItem.sequence` keeps the import order
   recoverable, which is what a third click on a column goes back to. Selection is
-  wholly the session's, `pick(path, extend)` included: the shift-click anchor lives
-  beside the images it points into, so removing or clearing drops it too.
+  wholly the session's, `pick(path, modifiers)` included: the shift-click anchor lives
+  beside the images it points into, so removing or clearing drops it too. `pick` is
+  where the file-explorer semantics are decided — a plain click *replaces* the
+  selection, `toggle` adds to or removes from it, `extend` takes the run from the
+  anchor — because the range is read off `images` and the anchor is part of the
+  selection, not of whichever view was clicked.
   The counting members — `total`, `selected`, `hasSelection`, `allSelected` — are
   `$derived`, not getters. A getter recomputes per read, and `hasSelection` is passed
   to every card and every row, so it would scan the whole roll once per image on
@@ -440,6 +444,23 @@ the front end resets anything still marked `developing` back to `pending`.
   the viewer arrives at it and keeps what it has read: a header does not change
   under an open session, and browsing back and forth would otherwise blink through
   the waiting line at every press.
+- The two views are file-explorer shaped: **one click picks an image, a double click
+  opens it**. Ctrl/cmd-click adds one to the selection without dropping the rest,
+  shift-click takes the whole run from the last one picked, and a plain click is the
+  whole selection — everything else lets go, which is why the grid's backdrop click
+  and `Escape` read as the same gesture. The mapping from a modifier to a
+  `PickModifiers` flag is written once in
+  [roll/utils/tile.ts](src/features/roll/utils/tile.ts) beside the rest of what a card
+  and a row answer identically, never in a component. Three things follow. A tile's
+  clickable face is still a `<button>`, so `Enter` opens it — and a button turns
+  `Enter` into a click of its own, which would pick instead, so `openOnEnter` holds
+  that default back; `Space` is left alone and picks, the way a file manager's does.
+  The checkbox is a *toggle* whatever is held, since that is what a box is for and it
+  is how a selection is built without a key down; it also stops its click from
+  reaching the image behind it, which would replace the selection it is being used to
+  add to. And both faces carry `.tile` from
+  [controls.css](src/styles/controls.css) for `user-select: none`, or the second click
+  of every double click drags a text selection across the name.
 - [ViewHeader.svelte](src/features/roll/components/ViewHeader.svelte) is the bar above the images
   in *both* views, and the only place select-all and the sort controls live — the toolbar
   deliberately carries neither. It reads `settings.viewMode` itself: in list view the sort
