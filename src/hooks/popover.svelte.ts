@@ -1,3 +1,5 @@
+import { on } from "svelte/events";
+
 /**
  * The one etiquette every popover in the app follows: a pointerdown
  * outside it closes it, and Escape closes it without also reaching the
@@ -22,29 +24,32 @@ interface Options {
  *
  * Binding per opening rather than for the component's life is what lets a
  * session hold hundreds of `ImageMenu`s without hundreds of live listeners.
+ * `on` rather than `addEventListener` keeps these in order with the
+ * handlers Svelte delegates from the markup.
  */
 export function dismissOnOutside({ open, isInside, close }: Options): (() => void) | void {
   if (!open) return;
 
-  const onpointerdown = (event: PointerEvent) => {
-    if (isInside(event.target as HTMLElement | null)) return;
-    close();
-  };
+  const stopPointer = on(window, "pointerdown", (event) => {
+    if (!isInside(event.target as HTMLElement | null)) close();
+  });
 
-  const onkeydown = (event: KeyboardEvent) => {
-    if (event.key !== "Escape") return;
-    // Capture phase, and swallowed: the same key would otherwise also clear
-    // the selection or close the viewer behind the popover.
-    event.stopPropagation();
-    close();
-  };
-
-  window.addEventListener("pointerdown", onpointerdown);
-  window.addEventListener("keydown", onkeydown, true);
+  const stopKey = on(
+    window,
+    "keydown",
+    (event) => {
+      if (event.key !== "Escape") return;
+      // Capture phase, and swallowed: the same key would otherwise also clear
+      // the selection or close the viewer behind the popover.
+      event.stopPropagation();
+      close();
+    },
+    { capture: true },
+  );
 
   return () => {
-    window.removeEventListener("pointerdown", onpointerdown);
-    window.removeEventListener("keydown", onkeydown, true);
+    stopPointer();
+    stopKey();
   };
 }
 

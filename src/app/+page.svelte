@@ -4,6 +4,7 @@
 
   import { startupPaths } from "$lib/api";
   import { pickFolder, pickImages, revealItems } from "$lib/files";
+  import { listening } from "$hooks/listening";
 
   import AboutModal from "$features/shell/components/AboutModal.svelte";
   import AppHeader from "$features/shell/components/AppHeader.svelte";
@@ -44,36 +45,26 @@
     onreveal: (path: string) => revealItems(path),
   };
 
-  onMount(() => {
-    const disposers: (() => void)[] = [];
+  // Tauri delivers real file paths here; the browser's own drag events
+  // never see them, which is why the HTML5 API is not used.
+  $effect(() =>
+    listening(
+      getCurrentWebview().onDragDropEvent(({ payload }) => {
+        if (payload.type === "drop") session.add(payload.paths);
+        dragging = payload.type === "enter" || payload.type === "over";
+      }),
+    ),
+  );
 
+  onMount(() => {
     (async () => {
       await settings.load();
       ready = true;
-
-      // Tauri delivers real file paths here; the browser's own drag events
-      // never see them, which is why the HTML5 API is not used.
-      disposers.push(
-        await getCurrentWebview().onDragDropEvent((event) => {
-          if (event.payload.type === "over") {
-            dragging = true;
-          } else if (event.payload.type === "drop") {
-            dragging = false;
-            session.add(event.payload.paths);
-          } else {
-            dragging = false;
-          }
-        }),
-      );
 
       // Scans named on the command line, e.g. opened from a file manager.
       const initial = await startupPaths();
       if (initial.length > 0) await session.add(initial);
     })();
-
-    return () => {
-      for (const dispose of disposers) dispose();
-    };
   });
 
   function onkeydown(event: KeyboardEvent) {

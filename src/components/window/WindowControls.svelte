@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { onMount } from "svelte";
   import { getCurrentWindow } from "@tauri-apps/api/window";
 
   import Icon from "$components/Icon.svelte";
+  import { listening } from "$hooks/listening";
 
   /** Stands in for the titlebar buttons the desktop would draw: the window is
       created with `decorations: false` so the header can host them instead. */
@@ -10,24 +10,15 @@
 
   let maximized = $state(false);
 
-  onMount(() => {
-    let unlisten: (() => void) | undefined;
-    let done = false;
-
-    (async () => {
+  // Maximising and restoring both resize the window, whichever way they were
+  // done — these buttons, a double click on the titlebar, the desktop's own
+  // shortcut — so a resize is the one moment to look again.
+  $effect(() => {
+    const sync = async () => {
       maximized = await appWindow.isMaximized();
-      const stop = await appWindow.onResized(async () => {
-        maximized = await appWindow.isMaximized();
-      });
-      // The component may already be gone by the time the listener lands.
-      if (done) stop();
-      else unlisten = stop;
-    })();
-
-    return () => {
-      done = true;
-      unlisten?.();
     };
+    void sync();
+    return listening(appWindow.onResized(sync));
   });
 </script>
 
