@@ -3,20 +3,10 @@ import type { Attachment } from "svelte/attachments";
 import { onVisibility } from "$hooks/visibility";
 import { session } from "$state/session.svelte";
 import type { ImageItem } from "$types";
-import type { ImageTileProps } from "../types";
-
-/** The per-image callbacks a view hands down, before they are bound to a path. */
-export type TileHandlers = {
-  onopen: (path: string) => void;
-  oninfo: (path: string) => void;
-  onreveal: (path: string) => void;
-};
+import type { ImageTileProps, TileHandlers } from "../types";
 
 /** Everything in `ImageTileProps` except what the view supplies per image. */
-type BoundCallbacks = Omit<
-  ImageTileProps,
-  "image" | "anySelected" | "showOriginal"
->;
+type BoundCallbacks = Omit<ImageTileProps, "image" | "anySelected" | "showOriginal">;
 
 /**
  * Binds one image's path into the callbacks a card or a row takes. The grid
@@ -74,10 +64,7 @@ export function openOnEnter(onopen: () => void) {
  * Which of an image's two previews the tile shows. The before/after toggle
  * reaches a card and a row alike, so they read it the same way.
  */
-export function previewSource(
-  image: ImageItem,
-  showOriginal: boolean,
-): string | undefined {
+export function previewSource(image: ImageItem, showOriginal: boolean): string | undefined {
   return showOriginal ? image.original : image.developed;
 }
 
@@ -87,4 +74,18 @@ export function previewSource(
  */
 export function previewPriority(path: string): Attachment {
   return onVisibility((visible) => session.previews.want(path, visible));
+}
+
+/**
+ * A click on a view's own background — between or below the images rather
+ * than on one — lets the selection go, the way a file manager's does. The
+ * elements that count as background carry `data-backdrop`; the header and
+ * the tiles inside them do not, so a click landing on one is theirs. That is
+ * a test of the target rather than children stopping the event, because the
+ * sticky header has to live inside the scroller.
+ */
+export function deselectOnBackdrop(event: MouseEvent) {
+  if ((event.target as HTMLElement).hasAttribute("data-backdrop")) {
+    session.setAllSelected(false);
+  }
 }

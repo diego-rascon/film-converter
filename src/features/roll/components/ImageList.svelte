@@ -2,21 +2,17 @@
   import ImageRow from "./ImageRow.svelte";
   import ViewHeader from "./ViewHeader.svelte";
   import { session } from "$state/session.svelte";
-  import { tileCallbacks } from "../utils/tile";
+  import type { RollViewProps } from "../types";
+  import { deselectOnBackdrop, tileCallbacks } from "../utils/tile";
 
   /** List view: the header and the rows, in one scroller. */
-  interface Props {
-    showOriginal: boolean;
-    onopen: (path: string) => void;
-    oninfo: (path: string) => void;
-    onreveal: (path: string) => void;
-  }
-
-  let { showOriginal, onopen, oninfo, onreveal }: Props = $props();
+  let { showOriginal, ...handlers }: RollViewProps = $props();
 </script>
 
-<div class="scroll">
-  <div class="list">
+<!-- The rows are full-bleed and butt up against each other, so the backdrop
+     is what is left below the last of them. -->
+<div class="scroll" data-backdrop onclick={deselectOnBackdrop} role="presentation">
+  <div class="list" data-backdrop>
     <ViewHeader />
     {#each session.images as image, index (image.path)}
       <ImageRow
@@ -24,7 +20,7 @@
         striped={index % 2 === 1}
         anySelected={session.hasSelection}
         {showOriginal}
-        {...tileCallbacks(image.path, { onopen, oninfo, onreveal })}
+        {...tileCallbacks(image.path, handlers)}
       />
     {/each}
   </div>

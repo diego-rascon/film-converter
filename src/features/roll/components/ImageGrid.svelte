@@ -3,40 +3,25 @@
   import ViewHeader from "./ViewHeader.svelte";
   import { session } from "$state/session.svelte";
   import { settings } from "$state/settings.svelte";
-  import { tileCallbacks } from "../utils/tile";
+  import type { RollViewProps } from "../types";
+  import { deselectOnBackdrop, tileCallbacks } from "../utils/tile";
 
   /** Grid view: the header and the cards, in one scroller. */
-  interface Props {
-    showOriginal: boolean;
-    /** Per-image callbacks, passed straight through to each card. */
-    onopen: (path: string) => void;
-    oninfo: (path: string) => void;
-    onreveal: (path: string) => void;
-  }
-
-  let { showOriginal, onopen, oninfo, onreveal }: Props = $props();
+  let { showOriginal, ...handlers }: RollViewProps = $props();
 </script>
 
-<!-- Clicking the backdrop itself — not a card, not the header — clears the
-     selection. The header is inside the scroller so it can be sticky, which
-     is why this tests the target rather than having children stop the
-     event on its way up. -->
-<div
-  class="scroll"
-  onclick={(event) => {
-    if (event.target === event.currentTarget) session.setAllSelected(false);
-  }}
-  role="presentation"
->
+<!-- The scroller and the grid are the backdrop: a click in the gaps between
+     the cards or below the last row lets the selection go. -->
+<div class="scroll" data-backdrop onclick={deselectOnBackdrop} role="presentation">
   <ViewHeader />
 
-  <div class="grid" style:--card-size="{settings.cardSize}px">
+  <div class="grid" data-backdrop style:--card-size="{settings.cardSize}px">
     {#each session.images as image (image.path)}
       <ImageCard
         {image}
         anySelected={session.hasSelection}
         {showOriginal}
-        {...tileCallbacks(image.path, { onopen, oninfo, onreveal })}
+        {...tileCallbacks(image.path, handlers)}
       />
     {/each}
   </div>
