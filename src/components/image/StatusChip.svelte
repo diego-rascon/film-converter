@@ -1,3 +1,14 @@
+<script lang="ts" module>
+  import type { ImageStatus } from "$types";
+
+  const labels: Record<ImageStatus, string> = {
+    pending: "Ready",
+    developing: "Developing",
+    done: "Developed",
+    error: "Failed",
+  };
+</script>
+
 <script lang="ts">
   import Icon from "$components/Icon.svelte";
   import type { ImageItem } from "$types";
@@ -9,13 +20,6 @@
   }
 
   let { image, compact = false }: Props = $props();
-
-  const labels = {
-    pending: "Ready",
-    developing: "Developing",
-    done: "Developed",
-    error: "Failed",
-  } as const;
 </script>
 
 {#if image.status !== "pending" || !compact}

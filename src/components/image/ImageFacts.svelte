@@ -25,7 +25,8 @@
    */
   const known = new Map<string, ImageMetadata>();
 
-  let facts = $state<ImageMetadata | null>(null);
+  /** Replaced whole for each file and never edited, so not deeply reactive. */
+  let facts = $state.raw<ImageMetadata | null>(null);
   let error = $state<string | null>(null);
 
   /**

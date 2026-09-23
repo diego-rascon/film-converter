@@ -1,3 +1,8 @@
+<script lang="ts" module>
+  /** Roughly the popover's height — three items and a separator. */
+  const MENU_HEIGHT = 132;
+</script>
+
 <script lang="ts">
   import Icon from "$components/Icon.svelte";
   import { dismissOnOutside } from "$hooks/popover.svelte";
@@ -24,9 +29,6 @@
   let host = $state<HTMLDivElement | null>(null);
   /** Set on opening: a menu near the bottom of the window drops upwards. */
   let up = $state(false);
-
-  /** Roughly the popover's height — three items and a separator. */
-  const MENU_HEIGHT = 132;
 
   function toggle() {
     if (!open && host) {
@@ -137,15 +139,15 @@
     height: 24px;
   }
 
-  /* List view: the same square as the remove button it replaced, on the
-     `--col-action` slot the header keeps for it. */
+  /* List view: the `--col-action` slot the header keeps for it, as a
+     square. */
   .inline .trigger {
     width: var(--col-action, 28px);
     height: 28px;
   }
 
   /* Everything else about the panel — where it hangs, how it animates, the
-     shape of an item — is `.popover` and `.menu` in app.css. Only the width
+     shape of an item — is `.popover` and `.menu` in controls.css. Only the width
      is this menu's, and it is set by its longest label. */
   .popover {
     min-width: 186px;

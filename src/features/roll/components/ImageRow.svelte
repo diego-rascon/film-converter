@@ -1,3 +1,8 @@
+<script lang="ts" module>
+  /** The row's own controls, which answer a click for themselves. */
+  const CONTROLS = '.image-menu, input[type="checkbox"]';
+</script>
+
 <script lang="ts">
   import Icon from "$components/Icon.svelte";
   import ImageMenu from "./ImageMenu.svelte";
@@ -26,9 +31,6 @@
   }: Props = $props();
 
   let source = $derived(previewSource(image, showOriginal));
-
-  /** The row's own controls, which answer a click for themselves. */
-  const CONTROLS = '.image-menu, input[type="checkbox"]';
 
   /**
    * The whole row is the image's hit target — the gutters, the gaps and the
@@ -67,7 +69,7 @@
   <button class="open" onkeydown={openOnEnter(onopen)}>
     <span class="thumb">
       {#if image.previewStatus === "ready" && source}
-        <img src={source} alt="" loading="lazy" />
+        <img src={source} alt="" loading="lazy" decoding="async" />
       {:else if image.previewStatus === "error"}
         <Icon name="alert" size={14} />
       {:else}
@@ -219,7 +221,7 @@
 
   /* The dimensions are the first thing to go when space is tight — at the
      window's 720px minimum the file size still fits, and it is the column
-     the header can sort by. ListHeader drops it at the same width. */
+     the header can sort by. ViewHeader drops it at the same width. */
   @media (max-width: 720px) {
     .dims {
       display: none;

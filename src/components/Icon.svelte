@@ -1,12 +1,8 @@
-<script lang="ts">
-  /** Inline SVG icons, stroked so they inherit the current text colour. */
-  interface Props {
-    name: keyof typeof paths;
-    size?: number;
-  }
-
-  let { name, size = 18 }: Props = $props();
-
+<script lang="ts" module>
+  /**
+   * Stroked paths on a 24px grid, keyed by name. Module-level, so the map is
+   * built once for the app rather than once for every icon on screen.
+   */
   const paths = {
     film: "M7 4v16M17 4v16M3 8h4M17 8h4M3 16h4M17 16h4M4 4h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z",
     menu: "M4 6h16M4 12h16M4 18h16",
@@ -42,6 +38,18 @@
     windowMaximize: "M5 5h14v14H5z",
     windowRestore: "M9 9V5h10v10h-4M5 9h10v10H5z",
   } as const;
+
+  export type IconName = keyof typeof paths;
+</script>
+
+<script lang="ts">
+  /** Inline SVG icons, stroked so they inherit the current text colour. */
+  interface Props {
+    name: IconName;
+    size?: number;
+  }
+
+  let { name, size = 18 }: Props = $props();
 </script>
 
 <svg

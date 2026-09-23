@@ -16,7 +16,7 @@
   <div class="head">
     <span class="thumb">
       {#if image.previewStatus === "ready" && image.developed}
-        <img src={image.developed} alt="" />
+        <img src={image.developed} alt="" decoding="async" />
       {/if}
     </span>
     <div class="title">

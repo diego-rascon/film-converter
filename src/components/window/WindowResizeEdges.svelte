@@ -1,11 +1,4 @@
-<script lang="ts">
-  import { getCurrentWindow } from "@tauri-apps/api/window";
-
-  /** Dropping the decorations also drops the compositor's resize border — GTK
-      stops handling it once the window is undecorated — so the frame draws its
-      own grips around the window edge. */
-  const appWindow = getCurrentWindow();
-
+<script lang="ts" module>
   const EDGES = [
     ["n", "North"],
     ["s", "South"],
@@ -16,6 +9,15 @@
     ["sw", "SouthWest"],
     ["se", "SouthEast"],
   ] as const;
+</script>
+
+<script lang="ts">
+  import { getCurrentWindow } from "@tauri-apps/api/window";
+
+  /** Dropping the decorations also drops the compositor's resize border — GTK
+      stops handling it once the window is undecorated — so the frame draws its
+      own grips around the window edge. */
+  const appWindow = getCurrentWindow();
 
   function grab(event: PointerEvent, direction: (typeof EDGES)[number][1]) {
     if (event.button !== 0) return;

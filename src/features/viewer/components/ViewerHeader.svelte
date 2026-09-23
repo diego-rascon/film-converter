@@ -1,9 +1,20 @@
+<script lang="ts" module>
+  import type { Mode } from "../types";
+
+  /** Before on the left and after on the right is the order the wipe
+      reveals them in, so the switch keeps it rather than the bar's. */
+  const MODES: { value: Mode; label: string }[] = [
+    { value: "before", label: "Before" },
+    { value: "wipe", label: "Compare" },
+    { value: "after", label: "After" },
+  ];
+</script>
+
 <script lang="ts">
   import Icon from "$components/Icon.svelte";
   import WindowControls from "$components/window/WindowControls.svelte";
   import { session } from "$state/session.svelte";
   import type { ImageItem } from "$types";
-  import type { Mode } from "../types";
 
   /**
    * The viewer's titlebar. It splits the way the toolbar splits its bar, so
@@ -32,14 +43,6 @@
     ontoggleDetails,
     onreveal,
   }: Props = $props();
-
-  /** Before on the left and after on the right is the order the wipe
-      reveals them in, so the switch keeps it rather than the bar's. */
-  const MODES: { value: Mode; label: string }[] = [
-    { value: "before", label: "Before" },
-    { value: "wipe", label: "Compare" },
-    { value: "after", label: "After" },
-  ];
 </script>
 
 <header data-tauri-drag-region>

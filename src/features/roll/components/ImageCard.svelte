@@ -34,7 +34,7 @@
       aria-label="Open {image.name}"
     >
       {#if image.previewStatus === "ready" && source}
-        <img src={source} alt={image.name} loading="lazy" />
+        <img src={source} alt={image.name} loading="lazy" decoding="async" />
       {:else if image.previewStatus === "error"}
         <span class="placeholder error">
           <Icon name="alert" size={20} />
@@ -148,10 +148,9 @@
   }
 
   /* Floats directly on the picture rather than inside a glass container of
-     its own — a second rounded square around it never shared its radius or
-     its centre with the checkbox's own corners, which is what read as
-     inconsistent. Its shape is the one every checkbox in the app already
-     has (`input[type="checkbox"]` in app.css); only its position and its
+     its own, which would put a second rounded square around the box's own
+     corners. Its shape is the one every checkbox in the app already has
+     (`input[type="checkbox"]` in controls.css); only its position and its
      unchecked colours are added here. */
   .pick {
     position: absolute;
