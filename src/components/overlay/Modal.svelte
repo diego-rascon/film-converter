@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
   import Icon from "$components/Icon.svelte";
+  import { holdFocus } from "$hooks/focus";
 
   interface Props {
     title: string;
@@ -10,18 +11,10 @@
 
   let { title, onclose, children }: Props = $props();
 
-  let dialog = $state<HTMLDivElement | null>(null);
-
-  // Move focus into the dialog so Escape and Tab behave as expected.
-  $effect(() => {
-    dialog?.focus();
-  });
-
+  // The page's own shortcuts stand down while a dialog is up, so Escape is
+  // this dialog's alone.
   function onkeydown(event: KeyboardEvent) {
-    if (event.key === "Escape") {
-      event.stopPropagation();
-      onclose();
-    }
+    if (event.key === "Escape") onclose();
   }
 </script>
 
@@ -39,7 +32,7 @@
     aria-modal="true"
     aria-label={title}
     tabindex="-1"
-    bind:this={dialog}
+    {@attach holdFocus}
   >
     <header>
       <h2>{title}</h2>

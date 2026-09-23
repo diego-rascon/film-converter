@@ -30,12 +30,19 @@
    */
   let dragging = $state(false);
   let showOriginal = $state(false);
-  let creditsOpen = $state(false);
-  let aboutOpen = $state(false);
+  /** The About or Credits dialog, whichever is up. */
+  let dialog = $state<"about" | "credits" | null>(null);
   /** The image whose properties are on screen, by path. */
   let infoPath = $state<string | null>(null);
 
-  let infoImage = $derived(infoPath === null ? null : session.find(infoPath));
+  let infoImage = $derived(infoPath === null ? undefined : session.find(infoPath));
+
+  /**
+   * The viewer or a dialog has the window. The shell behind it goes inert —
+   * out of the tab order, out of reach of the pointer — and its shortcuts
+   * stand down, since whatever is on top runs its own keyboard.
+   */
+  let covered = $derived(session.viewer !== null || dialog !== null || infoImage !== undefined);
 
   /** What a card or a row reports back, the same in either view. */
   const viewCallbacks = {
@@ -60,21 +67,22 @@
     startupPaths().then((paths) => session.add(paths));
   });
 
+  /** A field typed into, where the letter and delete keys are the field's. */
+  function typing(target: EventTarget | null): boolean {
+    return (
+      target instanceof HTMLElement &&
+      (target.isContentEditable ||
+        target.matches("textarea, select, input:not([type='checkbox'], [type='range'])"))
+    );
+  }
+
   function onkeydown(event: KeyboardEvent) {
-    // The viewer and the dialogs run their own keyboard handling.
-    if (session.viewer !== null) return;
-    if (creditsOpen || aboutOpen || infoImage) return;
+    if (covered || typing(event.target)) return;
 
-    const target = event.target as HTMLElement | null;
-    if (target && /^(INPUT|SELECT|TEXTAREA)$/.test(target.tagName)) return;
-
-    if ((event.ctrlKey || event.metaKey) && event.key === "a") {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "a") {
       event.preventDefault();
       session.setAllSelected(true);
-    } else if (
-      (event.key === "Delete" || event.key === "Backspace") &&
-      session.hasSelection
-    ) {
+    } else if ((event.key === "Delete" || event.key === "Backspace") && session.hasSelection) {
       event.preventDefault();
       session.removeSelected();
     } else if (event.key === "Escape" && session.hasSelection) {
@@ -85,10 +93,10 @@
 
 <svelte:window {onkeydown} />
 
-<div class="app" class:dragging>
+<div class="app" class:dragging inert={covered}>
   <AppHeader
-    oncredits={() => (creditsOpen = true)}
-    onabout={() => (aboutOpen = true)}
+    oncredits={() => (dialog = "credits")}
+    onabout={() => (dialog = "about")}
     onpickFiles={pickImages}
     onpickFolder={pickFolder}
   />
@@ -145,12 +153,10 @@
   <InfoModal image={infoImage} onclose={() => (infoPath = null)} />
 {/if}
 
-{#if creditsOpen}
-  <CreditsModal onclose={() => (creditsOpen = false)} />
-{/if}
-
-{#if aboutOpen}
-  <AboutModal onclose={() => (aboutOpen = false)} />
+{#if dialog === "credits"}
+  <CreditsModal onclose={() => (dialog = null)} />
+{:else if dialog === "about"}
+  <AboutModal onclose={() => (dialog = null)} />
 {/if}
 
 <WindowResizeEdges />

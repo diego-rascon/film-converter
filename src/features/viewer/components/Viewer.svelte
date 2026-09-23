@@ -7,6 +7,7 @@
   import type { Mode } from "../types";
   import { SharpPreviews } from "../state/sharp.svelte";
   import { ZoomPan } from "../state/zoom.svelte";
+  import { holdFocus } from "$hooks/focus";
   import { session } from "$state/session.svelte";
   import type { ImageItem } from "$types";
 
@@ -106,7 +107,7 @@
 
 <svelte:window {onkeydown} />
 
-<div class="viewer">
+<div class="viewer" tabindex="-1" {@attach holdFocus}>
   <ViewerHeader
     {image}
     {index}
@@ -154,6 +155,11 @@
     flex-direction: column;
     background: rgba(9, 9, 11, 0.9);
     animation: fade-in 0.13s ease;
+  }
+
+  /* It takes focus so the keyboard starts here, not to be seen doing so. */
+  .viewer:focus {
+    outline: none;
   }
 
   @supports (backdrop-filter: blur(1px)) or
