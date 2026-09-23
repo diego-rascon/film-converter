@@ -82,9 +82,18 @@
     else if (drag === "pan") zoom.panTo(event.clientX, event.clientY);
   }
 
-  function onpointerup(event: PointerEvent) {
+  /**
+   * On the button's release, and on losing the capture too: a pointer the
+   * system cancels mid-drag never sends its `pointerup`, and the picture
+   * would go on following it with no button held.
+   */
+  function endDrag() {
     drag = null;
     zoom.endPan();
+  }
+
+  function onpointerup(event: PointerEvent) {
+    endDrag();
     (event.currentTarget as HTMLElement).releasePointerCapture?.(event.pointerId);
   }
 
@@ -109,6 +118,7 @@
   {onpointerdown}
   {onpointermove}
   {onpointerup}
+  onlostpointercapture={endDrag}
   {onwheel}
   role="presentation"
 >
