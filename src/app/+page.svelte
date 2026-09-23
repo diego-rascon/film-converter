@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { listen } from "@tauri-apps/api/event";
   import { getCurrentWebview } from "@tauri-apps/api/webview";
 
   import { startupPaths } from "$lib/api";
@@ -21,7 +20,6 @@
 
   import { session } from "$state/session.svelte";
   import { settings } from "$state/settings.svelte";
-  import type { BatchProgress } from "$types";
 
   /**
    * The app shell: the bars, whichever view is showing, and the overlays.
@@ -65,12 +63,6 @@
           } else {
             dragging = false;
           }
-        }),
-      );
-
-      disposers.push(
-        await listen<BatchProgress>("develop://progress", (event) => {
-          session.applyProgress(event.payload);
         }),
       );
 

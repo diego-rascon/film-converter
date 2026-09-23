@@ -38,7 +38,6 @@ export interface ImportedImage {
 }
 
 export interface Preview {
-  path: string;
   original: string;
   developed: string;
   width: number;
@@ -47,8 +46,6 @@ export interface Preview {
 
 /** One file's properties, read from its header and the filesystem. */
 export interface ImageMetadata {
-  path: string;
-  name: string;
   /** The enclosing folder. */
   directory: string;
   bytes: number;
@@ -75,9 +72,7 @@ export interface OutputSettings {
 
 export interface BatchProgress {
   path: string;
-  name: string;
   completed: number;
-  total: number;
   output: string | null;
   error: string | null;
 }
@@ -90,7 +85,6 @@ export interface BatchFailure {
 
 export interface BatchReport {
   succeeded: number;
-  failed: number;
   cancelled: boolean;
   failures: BatchFailure[];
 }

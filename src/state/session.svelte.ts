@@ -338,7 +338,7 @@ class Session {
     this.viewerIndex = (this.viewerIndex + step + count) % count;
   }
 
-  /** Folds a per-image progress event into the session. */
+  /** Folds one image's progress, as the run's channel reports it, into the session. */
   applyProgress(progress: BatchProgress) {
     const image = this.find(progress.path);
     if (image) {
@@ -384,6 +384,7 @@ class Session {
       const report = await developBatch(
         targets.map((i) => i.path),
         settings.output,
+        (progress) => this.applyProgress(progress),
       );
       this.failures = report.failures;
 
@@ -417,10 +418,11 @@ function summarise(report: BatchReport, requested: number): Notice {
       text: `Cancelled — developed ${report.succeeded} of ${requested}`,
     };
   }
-  if (report.failed > 0) {
+  const failed = report.failures.length;
+  if (failed > 0) {
     return {
       kind: "error",
-      text: `Developed ${report.succeeded} of ${requested} — ${report.failed} failed`,
+      text: `Developed ${report.succeeded} of ${requested} — ${failed} failed`,
     };
   }
   return {
