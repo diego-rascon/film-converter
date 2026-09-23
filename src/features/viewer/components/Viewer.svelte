@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { untrack } from "svelte";
+
   import ViewerDetails from "./ViewerDetails.svelte";
   import ViewerHeader from "./ViewerHeader.svelte";
   import ViewerStage from "./ViewerStage.svelte";
@@ -28,8 +30,9 @@
 
   // Opens on whichever side the grid or list was showing, so clicking an
   // image does not change what is on screen. The viewer is mounted per
-  // opening, so this is read once and the switch is free to move from there.
-  let mode = $state<Mode>(showOriginal ? "before" : "after");
+  // opening, so this is read once — untracked — and the switch is free to
+  // move from there.
+  let mode = $state<Mode>(untrack(() => (showOriginal ? "before" : "after")));
   let details = $state(false);
 
   const zoom = new ZoomPan();
@@ -128,7 +131,7 @@
   }
 </script>
 
-<svelte:window on:keydown={onkeydown} />
+<svelte:window {onkeydown} />
 
 <div class="viewer">
   <ViewerHeader

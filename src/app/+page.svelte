@@ -99,7 +99,7 @@
   }
 </script>
 
-<svelte:window on:keydown={onkeydown} />
+<svelte:window {onkeydown} />
 
 <div class="app" class:dragging>
   <AppHeader

@@ -8,6 +8,11 @@ import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
   preprocess: vitePreprocess(),
+  // Every component is written with runes, so none may fall back to the
+  // legacy syntax — `export let`, `$:`, `on:click` — without failing to build.
+  compilerOptions: {
+    runes: true,
+  },
   kit: {
     adapter: adapter({
       fallback: "index.html",

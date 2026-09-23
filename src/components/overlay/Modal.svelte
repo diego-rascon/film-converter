@@ -25,7 +25,7 @@
   }
 </script>
 
-<svelte:window on:keydown={onkeydown} />
+<svelte:window {onkeydown} />
 
 <div class="backdrop">
   <!-- Clicking away closes the dialog. Escape does the same from the
