@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from "$components/Icon.svelte";
+  import { INPUT_FORMAT_NAMES } from "$data/formats";
 
   interface Props {
     /** True while a drag is hovering the window. */
@@ -31,7 +32,7 @@
     </button>
   </div>
 
-  <p class="formats">JPEG · PNG · TIFF · BMP · WebP</p>
+  <p class="formats">{INPUT_FORMAT_NAMES.join(" · ")}</p>
 </div>
 
 <style>

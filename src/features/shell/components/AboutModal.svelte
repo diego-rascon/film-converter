@@ -1,12 +1,18 @@
 <script lang="ts">
+  import { getVersion } from "@tauri-apps/api/app";
+
   import Modal from "$components/overlay/Modal.svelte";
   import Icon from "$components/Icon.svelte";
+  import { INPUT_FORMAT_NAMES, OUTPUT_FORMATS } from "$data/formats";
 
   interface Props {
     onclose: () => void;
   }
 
   let { onclose }: Props = $props();
+
+  /** The version the app was built as, rather than a copy of it here. */
+  const version = getVersion();
 </script>
 
 <Modal title="About" {onclose}>
@@ -17,7 +23,9 @@
 
     <div>
       <h3>Film Converter</h3>
-      <p class="version">Version 0.1.0</p>
+      <p class="version">
+        {#await version then number}Version {number}{/await}
+      </p>
     </div>
 
     <p>
@@ -33,11 +41,11 @@
       </div>
       <div>
         <dt class="caps">Reads</dt>
-        <dd>JPEG, PNG, TIFF, BMP, WebP</dd>
+        <dd>{INPUT_FORMAT_NAMES.join(", ")}</dd>
       </div>
       <div>
         <dt class="caps">Writes</dt>
-        <dd>JPEG, PNG, TIFF</dd>
+        <dd>{OUTPUT_FORMATS.map((format) => format.label).join(", ")}</dd>
       </div>
     </dl>
   </div>

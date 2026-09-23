@@ -1,19 +1,12 @@
 import type { OutputFormat } from "$types";
 
 /**
- * The containers the app reads. `import_paths` on the Rust side accepts
- * exactly these, and the file dialogs filter to the same set — one list, so
- * a dialog cannot offer a file the importer would then skip.
+ * The containers the app reads, as a person would name them — for the empty
+ * window and the About dialog. Which files the importer actually takes is
+ * the Rust side's own list of extensions, and the file dialog asks it for
+ * that list rather than keeping a copy here that could drift.
  */
-export const IMAGE_EXTENSIONS = [
-  "jpg",
-  "jpeg",
-  "png",
-  "tif",
-  "tiff",
-  "bmp",
-  "webp",
-];
+export const INPUT_FORMAT_NAMES = ["JPEG", "PNG", "TIFF", "BMP", "WebP"] as const;
 
 /**
  * What it writes: the output format setting's choices, in the order they are
