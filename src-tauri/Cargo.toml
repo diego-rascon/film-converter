@@ -3,6 +3,7 @@ name = "film-converter"
 version = "0.1.0"
 description = "Batch develop film negative scans"
 authors = ["Diego Rascón", "Adrián Rascón"]
+license = "MIT"
 edition = "2024"
 # `<[T]>::as_chunks`, which the pipeline's pixel loops are written with.
 rust-version = "1.88"
