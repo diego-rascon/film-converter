@@ -12,16 +12,31 @@
 //! Percentiles are taken per channel *after* inversion, so each of R, G and B
 //! gets its own black and white point. That is what removes the orange mask of
 //! a colour negative.
+//!
+//! The port never builds the inverted image. Inversion maps a value `v` to
+//! `255 - v`, so the inverted image's histogram is the scan's own read
+//! backwards, and its percentiles come straight off that. The stretch is a
+//! table from 256 values to 256 values, so the inversion folds into the same
+//! table. That leaves one read of the scan to measure it and one pass through
+//! a table to develop it — and every pixel comes out exactly as the three
+//! steps above would leave it, which `develop_matches_the_three_step_pipeline`
+//! checks byte for byte.
 
 use image::RgbImage;
+use rayon::prelude::*;
 
 /// Percentile of the darkest pixels that gets clipped to pure black.
 pub const LOW_PERCENTILE: f64 = 0.5;
 /// Percentile above which pixels get clipped to pure white.
 pub const HIGH_PERCENTILE: f64 = 99.5;
 
+/// Pixels per piece when measuring is split across the pool: hundreds of
+/// pieces for a full scan, and never so small that merging the per-piece
+/// histograms costs more than counting them did.
+const CHUNK_PIXELS: usize = 1 << 16;
+
 /// Per-channel clipping points chosen for one image, in inverted-image space.
-#[derive(Clone, Copy, Debug, Default, serde::Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ChannelLevels {
     pub low: f64,
     pub high: f64,
@@ -30,24 +45,55 @@ pub struct ChannelLevels {
 /// The black/white points picked for each of the three channels.
 pub type Levels = [ChannelLevels; 3];
 
-/// Inverts `img` in place. Equivalent to numpy's `255 - img`.
-fn invert(img: &mut RgbImage) {
-    for byte in img.iter_mut() {
-        *byte = 255 - *byte;
+/// How often each 0..=255 value occurs, separately per channel.
+type Histograms = [[u64; 256]; 3];
+
+/// Counts the scan's values per channel.
+///
+/// A preview measures one scan from outside the pool, so the count is split
+/// across every core. A run already develops a scan on each of the pool's
+/// workers, so there it stays on the worker's own thread: splitting would
+/// buy nothing on busy cores, and a worker left waiting on its pieces would
+/// pick up a whole other scan meanwhile and hold both in memory.
+///
+/// Split, the counts live on the heap. Rayon carries each piece's
+/// accumulator down its recursion, and a waiting worker runs stolen pieces of
+/// other previews on top of its own stack: 6 KB of counts per level, nested
+/// that way, overflowed it.
+fn histograms(img: &RgbImage) -> Histograms {
+    if rayon::current_thread_index().is_some() {
+        let mut hists = [[0; 256]; 3];
+        count(&mut hists, img);
+        return hists;
     }
+
+    let empty = || Box::new([[0; 256]; 3]);
+    let total = img
+        .par_chunks(3 * CHUNK_PIXELS)
+        .fold(empty, |mut hists: Box<Histograms>, chunk| {
+            count(&mut hists, chunk);
+            hists
+        })
+        .reduce(empty, |mut total, part| {
+            for (total, part) in total.iter_mut().zip(part.iter()) {
+                for (sum, count) in total.iter_mut().zip(part) {
+                    *sum += count;
+                }
+            }
+            total
+        });
+    *total
 }
 
-/// Counts how often each 0..=255 value occurs, separately per channel.
-fn histograms(img: &RgbImage) -> [[u64; 256]; 3] {
-    let mut hists = [[0u64; 256]; 3];
+/// Adds `pixels`, whole RGB triples, to `hists`.
+fn count(hists: &mut Histograms, pixels: &[u8]) {
     // `as_chunks` yields fixed-size arrays, so the indexing below needs no
     // bounds checks.
-    for pixel in img.as_chunks::<3>().0 {
-        hists[0][pixel[0] as usize] += 1;
-        hists[1][pixel[1] as usize] += 1;
-        hists[2][pixel[2] as usize] += 1;
+    for pixel in pixels.as_chunks::<3>().0 {
+        hists[0][usize::from(pixel[0])] += 1;
+        hists[1][usize::from(pixel[1])] += 1;
+        hists[2][usize::from(pixel[2])] += 1;
     }
-    hists
 }
 
 /// numpy's `_lerp`: interpolate from `a` below the midpoint and from `b` above
@@ -87,23 +133,25 @@ fn percentile(hist: &[u64; 256], count: u64, q: f64) -> f64 {
     // Walk the cumulative histogram once, picking up the values at `lower_rank`
     // and `lower_rank + 1` as we pass them.
     let mut cumulative = 0u64;
-    let mut lower_value: Option<u8> = None;
+    let mut lower_value = None;
     for (value, &occurrences) in hist.iter().enumerate() {
         cumulative += occurrences;
-        if lower_value.is_none() && cumulative > lower_rank {
-            lower_value = Some(value as u8);
-            // An exact rank needs no neighbour, and neither does a bucket wide
-            // enough to contain both ranks.
-            if fraction == 0.0 || cumulative > lower_rank + 1 {
-                return value as f64;
+        match lower_value {
+            None if cumulative > lower_rank => {
+                // An exact rank needs no neighbour, and neither does a bucket
+                // wide enough to contain both ranks.
+                if fraction == 0.0 || cumulative > lower_rank + 1 {
+                    return value as f64;
+                }
+                lower_value = Some(value as f64);
             }
-        } else if lower_value.is_some() && occurrences > 0 {
-            return lerp(lower_value.unwrap() as f64, value as f64, fraction);
+            Some(lower) if occurrences > 0 => return lerp(lower, value as f64, fraction),
+            _ => {}
         }
     }
 
     // Only reachable if `lower_rank` is the very last sample.
-    lower_value.map_or(0.0, f64::from)
+    lower_value.unwrap_or(0.0)
 }
 
 /// Builds the 256-entry lookup table that `stretch_channel` amounts to.
@@ -116,72 +164,64 @@ fn stretch_lut(low: f64, high: f64) -> Option<[u8; 256]> {
     }
 
     let scale = 255.0 / (high - low);
-    let mut lut = [0u8; 256];
-    for (value, entry) in lut.iter_mut().enumerate() {
+    Some(std::array::from_fn(|value| {
         let stretched = (value as f64 - low) * scale;
         // `np.clip(...).astype(np.uint8)` truncates rather than rounds, so
         // `as u8` on a clamped f64 reproduces it exactly.
-        *entry = stretched.clamp(0.0, 255.0) as u8;
-    }
-    Some(lut)
+        stretched.clamp(0.0, 255.0) as u8
+    }))
 }
 
-/// Picks black and white points for each channel of an already-inverted image.
-fn measure_levels(img: &RgbImage) -> Levels {
-    let hists = histograms(img);
-    let count = (img.width() as u64) * (img.height() as u64);
-
-    let mut levels = Levels::default();
-    for (channel, hist) in hists.iter().enumerate() {
-        levels[channel] = ChannelLevels {
-            low: percentile(hist, count, LOW_PERCENTILE),
-            high: percentile(hist, count, HIGH_PERCENTILE),
-        };
-    }
-    levels
+/// Picks each channel's black and white point: the 0.5th and 99.5th
+/// percentiles of the *inverted* scan, read off the scan's own histogram.
+pub fn measure(img: &RgbImage) -> Levels {
+    let count = u64::from(img.width()) * u64::from(img.height());
+    histograms(img).map(|mut hist| {
+        // A count of value `v` in the scan is a count of `255 - v` in its
+        // inversion, so the inversion's histogram is this one reversed.
+        hist.reverse();
+        ChannelLevels {
+            low: percentile(&hist, count, LOW_PERCENTILE),
+            high: percentile(&hist, count, HIGH_PERCENTILE),
+        }
+    })
 }
 
-/// Applies previously measured levels to an inverted image, in place.
-fn apply_levels(img: &mut RgbImage, levels: &Levels) {
-    // A channel too flat to stretch keeps its values, like the Python's early
-    // `return channel`. Expressing that as an identity table keeps the inner
-    // loop branch-free.
-    let identity: [u8; 256] = std::array::from_fn(|value| value as u8);
-    let luts: [[u8; 256]; 3] =
-        std::array::from_fn(|c| stretch_lut(levels[c].low, levels[c].high).unwrap_or(identity));
-
-    for pixel in img.as_chunks_mut::<3>().0 {
-        pixel[0] = luts[0][pixel[0] as usize];
-        pixel[1] = luts[1][pixel[1] as usize];
-        pixel[2] = luts[2][pixel[2] as usize];
+/// The table one channel develops through: each scan value's inversion,
+/// stretched between the channel's levels. A channel too flat to stretch is
+/// only inverted, like the Python's early `return channel` after `255 - img`.
+fn develop_table(levels: ChannelLevels) -> [u8; 256] {
+    match stretch_lut(levels.low, levels.high) {
+        Some(stretch) => std::array::from_fn(|value| stretch[255 - value]),
+        None => std::array::from_fn(|value| (255 - value) as u8),
     }
 }
 
-/// Inverts `img` and measures the clipping points, without stretching yet.
+/// Develops `img` in place with levels measured elsewhere — used for
+/// previews, where the levels come from the full-resolution scan but the
+/// pixels being mapped are a downscaled copy.
 ///
-/// Splitting the pipeline here lets a preview reuse the levels measured from
-/// the full-resolution scan, so what the user sees matches what gets written.
-pub fn invert_and_measure(img: &mut RgbImage) -> Levels {
-    invert(img);
-    measure_levels(img)
+/// One thread is enough: a preview's copy is small, and a run already keeps
+/// every core busy with a scan each.
+pub fn develop_with_levels(img: &mut RgbImage, levels: &Levels) {
+    let tables = levels.map(develop_table);
+    for pixel in img.as_chunks_mut::<3>().0 {
+        pixel[0] = tables[0][usize::from(pixel[0])];
+        pixel[1] = tables[1][usize::from(pixel[1])];
+        pixel[2] = tables[2][usize::from(pixel[2])];
+    }
 }
 
 /// The full `process_image` pipeline: invert, then stretch every channel.
-pub fn develop(img: &mut RgbImage) -> Levels {
-    let levels = invert_and_measure(img);
-    apply_levels(img, &levels);
-    levels
-}
-
-/// Inverts and stretches using levels measured elsewhere — used for previews,
-/// where the levels come from the full-resolution image but the pixels being
-/// mapped are a downscaled copy.
-pub fn develop_with_levels(img: &mut RgbImage, levels: &Levels) {
-    invert(img);
-    apply_levels(img, levels);
+pub fn develop(img: &mut RgbImage) {
+    let levels = measure(img);
+    develop_with_levels(img, &levels);
 }
 
 #[cfg(test)]
+// The pinned values are written the way numpy prints them, so they can be
+// checked against its output by eye.
+#[allow(clippy::unreadable_literal)]
 mod tests {
     use super::*;
 
@@ -195,15 +235,56 @@ mod tests {
         let lower = virtual_index.floor() as usize;
         let fraction = virtual_index - lower as f64;
         if fraction == 0.0 {
-            return sorted[lower] as f64;
+            return f64::from(sorted[lower]);
         }
-        lerp(sorted[lower] as f64, sorted[lower + 1] as f64, fraction)
+        lerp(
+            f64::from(sorted[lower]),
+            f64::from(sorted[lower + 1]),
+            fraction,
+        )
+    }
+
+    /// The Python, step by step: build the inverted image, take each
+    /// channel's percentiles off its sorted samples, stretch with numpy's
+    /// formula. Nothing is folded together or read backwards.
+    fn three_step_pipeline(img: &RgbImage) -> RgbImage {
+        let mut inverted = img.clone();
+        for byte in inverted.iter_mut() {
+            *byte = 255 - *byte;
+        }
+
+        let mut developed = inverted.clone();
+        for channel in 0..3 {
+            let samples: Vec<u8> = inverted.pixels().map(|p| p.0[channel]).collect();
+            let low = naive_percentile(&samples, LOW_PERCENTILE);
+            let high = naive_percentile(&samples, HIGH_PERCENTILE);
+            if high - low < 1.0 {
+                continue;
+            }
+            for (pixel, &value) in developed.pixels_mut().zip(&samples) {
+                let stretched = (f64::from(value) - low) * (255.0 / (high - low));
+                pixel.0[channel] = stretched.clamp(0.0, 255.0) as u8;
+            }
+        }
+        developed
+    }
+
+    /// Deterministic noise, so a failure reproduces.
+    fn noise(width: u32, height: u32, seed: u64) -> RgbImage {
+        let mut state = seed | 1;
+        RgbImage::from_fn(width, height, |_, _| {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            let [r, g, b, ..] = state.to_le_bytes();
+            image::Rgb([r, g, b])
+        })
     }
 
     fn histogram_of(samples: &[u8]) -> [u64; 256] {
         let mut hist = [0u64; 256];
         for &s in samples {
-            hist[s as usize] += 1;
+            hist[usize::from(s)] += 1;
         }
         hist
     }
@@ -305,7 +386,10 @@ mod tests {
         assert_eq!(lut[20], 0, "the black point becomes 0");
         // 200 * (255/200) lands a hair under 255 in f64 and truncates to 254 --
         // numpy's `astype(np.uint8)` does exactly the same.
-        assert_eq!(lut[220], 254, "the white point reaches the top of the range");
+        assert_eq!(
+            lut[220], 254,
+            "the white point reaches the top of the range"
+        );
         assert_eq!(lut[255], 255, "above the white point clips to 255");
         assert!(lut[120] > 0 && lut[120] < 255, "midtones stay in range");
     }
@@ -320,6 +404,80 @@ mod tests {
     }
 
     #[test]
+    fn develop_matches_the_three_step_pipeline() {
+        let low_contrast = RgbImage::from_fn(40, 30, |x, y| {
+            image::Rgb([
+                150 + (x % 40) as u8,
+                110 + (y % 30) as u8,
+                70 + ((x + y) % 20) as u8,
+            ])
+        });
+        // Blue is a single value, so it takes the too-flat branch and is only
+        // inverted while red and green are stretched.
+        let one_flat_channel = RgbImage::from_fn(33, 17, |x, y| {
+            image::Rgb([(x * 7) as u8, (y * 15) as u8, 77])
+        });
+        // More pixels than one parallel chunk holds, so the histograms are
+        // counted in pieces and merged.
+        let spans_chunks = noise(300, 300, 0x2545_f491_4f6c_dd1d);
+
+        for (name, scan) in [
+            ("low contrast", low_contrast),
+            ("one flat channel", one_flat_channel),
+            ("spans chunks", spans_chunks),
+            ("all black", RgbImage::new(8, 8)),
+        ] {
+            let mut developed = scan.clone();
+            develop(&mut developed);
+            assert_eq!(
+                developed.as_raw(),
+                three_step_pipeline(&scan).as_raw(),
+                "{name}: the single pass must reproduce the Python's three steps"
+            );
+        }
+    }
+
+    #[test]
+    fn measuring_matches_the_inverted_images_percentiles() {
+        let scan = noise(64, 48, 7);
+        let levels = measure(&scan);
+        for (channel, level) in levels.iter().enumerate() {
+            let inverted: Vec<u8> = scan.pixels().map(|p| 255 - p.0[channel]).collect();
+            assert_eq!(level.low, naive_percentile(&inverted, LOW_PERCENTILE));
+            assert_eq!(level.high, naive_percentile(&inverted, HIGH_PERCENTILE));
+        }
+    }
+
+    #[test]
+    fn a_run_measures_what_a_preview_measures() {
+        // A preview measures from outside the pool, split across it; a run
+        // measures on one of the pool's workers, in one piece. `join` from
+        // outside the pool runs its closure on a worker.
+        let scan = noise(300, 300, 11);
+        let (on_a_worker, ()) = rayon::join(|| measure(&scan), || ());
+        assert_eq!(on_a_worker, measure(&scan));
+    }
+
+    #[test]
+    fn measuring_many_scans_at_once_stays_off_the_workers_stacks() {
+        // Previews measure several scans at once on the shared rayon pool, so
+        // a worker waiting on one piece steals pieces of another and nests
+        // them on its own stack. Histograms carried by value through that
+        // recursion overflowed it; this is the load that found it.
+        let scan = noise(2048, 2048, 3);
+        let expected = measure(&scan);
+        std::thread::scope(|scope| {
+            for _ in 0..8 {
+                scope.spawn(|| {
+                    for _ in 0..4 {
+                        assert_eq!(measure(&scan), expected);
+                    }
+                });
+            }
+        });
+    }
+
+    #[test]
     fn develop_inverts_and_expands_contrast() {
         // A low-contrast "negative": values bunched between 100 and 150.
         let mut img = RgbImage::from_fn(10, 10, |x, _| {
@@ -327,14 +485,17 @@ mod tests {
             image::Rgb([v, v, v])
         });
 
-        let levels = develop(&mut img);
+        let levels = measure(&img);
         assert!(levels[0].high > levels[0].low);
+        develop(&mut img);
 
         let values: Vec<u8> = img.pixels().map(|p| p.0[0]).collect();
-        let min = *values.iter().min().unwrap();
-        let max = *values.iter().max().unwrap();
-        assert_eq!(min, 0, "darkest pixel reaches black");
-        assert_eq!(max, 255, "brightest pixel reaches white");
+        assert_eq!(values.iter().min(), Some(&0), "darkest pixel reaches black");
+        assert_eq!(
+            values.iter().max(),
+            Some(&255),
+            "brightest pixel reaches white"
+        );
 
         // Inversion means the originally-brightest column is now the darkest.
         let first_column = img.get_pixel(0, 0).0[0];
@@ -349,7 +510,8 @@ mod tests {
         });
         let mut copy = full.clone();
 
-        let levels = develop(&mut full);
+        let levels = measure(&full);
+        develop(&mut full);
         develop_with_levels(&mut copy, &levels);
 
         assert_eq!(full.as_raw(), copy.as_raw());

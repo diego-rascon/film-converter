@@ -138,14 +138,14 @@ pub async fn import_paths(paths: Vec<String>) -> Result<Vec<ImportedImage>, Stri
 pub async fn build_preview(path: String, max_edge: u32) -> Result<Preview, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let source = PathBuf::from(&path);
-        let mut full = image_io::load_rgb(&source)?;
+        let full = image_io::load_rgb(&source)?;
         let (width, height) = (full.width(), full.height());
 
         let original = image_io::downscale(&full, max_edge);
         let mut developed = original.clone();
 
-        // Inverts `full` in place; we only need its statistics from here on.
-        let levels = processing::invert_and_measure(&mut full);
+        // Only its statistics are needed from here on.
+        let levels = processing::measure(&full);
         drop(full);
 
         processing::develop_with_levels(&mut developed, &levels);
