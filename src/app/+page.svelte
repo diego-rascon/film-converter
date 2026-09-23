@@ -62,7 +62,7 @@
 
   function onkeydown(event: KeyboardEvent) {
     // The viewer and the dialogs run their own keyboard handling.
-    if (session.viewerIndex !== null) return;
+    if (session.viewer !== null) return;
     if (creditsOpen || aboutOpen || infoImage) return;
 
     const target = event.target as HTMLElement | null;
@@ -131,13 +131,13 @@
   <StatusBar />
 </div>
 
-{#if session.viewerImage && session.viewerIndex !== null}
+{#if session.viewer}
   <Viewer
-    image={session.viewerImage}
-    index={session.viewerIndex}
+    image={session.viewer.image}
+    index={session.viewer.index}
     total={session.total}
     {showOriginal}
-    onreveal={() => revealItems(session.viewerImage!.path)}
+    onreveal={revealItems}
   />
 {/if}
 

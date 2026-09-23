@@ -1,6 +1,7 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { openPath, revealItemInDir } from "@tauri-apps/plugin-opener";
 
+import { notices } from "$state/notices.svelte";
 import { session } from "$state/session.svelte";
 import { supportedExtensions } from "./api";
 
@@ -57,7 +58,7 @@ export async function revealItems(paths: string | string[]) {
   try {
     await revealItemInDir(paths);
   } catch {
-    session.notice = { kind: "error", text: "Could not open the file manager" };
+    notices.show("error", "Could not open the file manager");
   }
 }
 
@@ -66,10 +67,7 @@ export async function openFolder(path: string) {
   try {
     await openPath(path);
   } catch {
-    session.notice = {
-      kind: "error",
-      text: "Could not open the output folder",
-    };
+    notices.show("error", "Could not open the output folder");
   }
 }
 

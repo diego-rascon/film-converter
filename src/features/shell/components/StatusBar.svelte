@@ -2,19 +2,9 @@
   import Icon from "$components/Icon.svelte";
   import { openFolder, pickOutputFolder } from "$lib/files";
   import { counted } from "$utils/format";
+  import { batch } from "$state/batch.svelte";
   import { session } from "$state/session.svelte";
   import { settings } from "$state/settings.svelte";
-
-  /** Saving acts on the selection when there is one, otherwise everything. */
-  let targetCount = $derived(
-    session.hasSelection ? session.selected.length : session.total,
-  );
-
-  let progress = $derived(
-    session.developing && targetCount > 0
-      ? (session.completed / targetCount) * 100
-      : 0,
-  );
 
   /**
    * Saving always asks where to put the files, so the destination is a
@@ -26,14 +16,14 @@
     if (chosen === null) return;
 
     settings.directory = chosen;
-    await session.develop();
+    await batch.develop(session.targets, settings.output);
   }
 </script>
 
 <footer>
-  {#if session.developing}
+  {#if batch.running}
     <div class="track" aria-hidden="true">
-      <div class="fill" style:width="{progress}%"></div>
+      <div class="fill" style:--progress={batch.progress}></div>
     </div>
   {/if}
 
@@ -42,16 +32,18 @@
   {/if}
 
   <div class="right">
-    {#if session.developed > 0 && !session.developing}
+    {#if session.developed > 0 && !batch.running}
       <button class="btn btn-ghost" onclick={() => openFolder(settings.directory)}>
         <Icon name="external" size={15} />
         Show output
       </button>
     {/if}
 
-    {#if session.developing}
-      <span class="counter">{session.completed} / {targetCount}</span>
-      <button class="btn" onclick={() => session.cancel()}>
+    {#if batch.running}
+      <!-- The run's own total, fixed when it started: picking images while
+           it develops changes what the next Save would take, not this one. -->
+      <span class="counter">{batch.completed} / {batch.total}</span>
+      <button class="btn" onclick={() => batch.cancel()}>
         <Icon name="stop" size={14} />
         Cancel
       </button>
@@ -64,7 +56,7 @@
       >
         Save…
         {#if session.hasSelection}
-          <span class="badge">{targetCount}</span>
+          <span class="badge">{session.targets.length}</span>
         {/if}
       </button>
     {/if}
@@ -96,10 +88,14 @@
     background: var(--surface-sunken);
   }
 
+  /* Scaled rather than resized, so each step of the run is a compositor
+     transition instead of a layout. */
   .fill {
     height: 100%;
     background: var(--accent);
-    transition: width 0.25s ease;
+    transform: scaleX(var(--progress));
+    transform-origin: left;
+    transition: transform 0.25s ease;
   }
 
   .count {

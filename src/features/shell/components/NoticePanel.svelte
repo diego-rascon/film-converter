@@ -1,16 +1,36 @@
-<script lang="ts">
-  import Icon from "$components/Icon.svelte";
-  import { counted } from "$utils/format";
-  import { session } from "$state/session.svelte";
+<script lang="ts" module>
+  import type { IconName } from "$components/Icon.svelte";
+  import type { NoticeKind } from "$state/notices.svelte";
 
   /** How long a notice that asks nothing of the user stays up. */
   const DISMISS_MS = 4500;
 
-  let detailsOpen = $state(false);
+  const GLYPHS: Record<NoticeKind, IconName> = {
+    error: "alert",
+    success: "check",
+    info: "info",
+  };
+</script>
 
-  let notice = $derived(session.notice);
-  let failures = $derived(session.failures);
+<script lang="ts">
+  import Icon from "$components/Icon.svelte";
+  import { counted } from "$utils/format";
+  import { batch } from "$state/batch.svelte";
+  import { notices } from "$state/notices.svelte";
+
+  let notice = $derived(notices.current);
+  let failures = $derived(batch.failures);
   let shown = $derived(notice !== null || failures.length > 0);
+
+  /**
+   * Whether the failure list is unfolded. The button sets it; a new list —
+   * or none — starts folded up again, which is why it is derived from the
+   * failures rather than state an effect has to reset.
+   */
+  let detailsOpen = $derived.by(() => {
+    void failures;
+    return false;
+  });
 
   /**
    * Errors and runs with failures wait to be dismissed — they are the ones
@@ -20,26 +40,16 @@
    */
   $effect(() => {
     const current = notice;
-    if (!current) return;
-    if (current.kind === "error") return;
-    if (failures.length > 0 || session.developing) return;
+    if (!current || current.kind === "error") return;
+    if (failures.length > 0 || batch.running) return;
 
-    const timer = setTimeout(() => {
-      if (session.notice === current) session.notice = null;
-    }, DISMISS_MS);
+    const timer = setTimeout(() => notices.clear(current), DISMISS_MS);
     return () => clearTimeout(timer);
   });
 
-  // A run clears the failures before it starts, so the expanded list never
-  // outlives the run it describes.
-  $effect(() => {
-    if (failures.length === 0) detailsOpen = false;
-  });
-
   function dismiss() {
-    session.notice = null;
-    session.failures = [];
-    detailsOpen = false;
+    notices.clear();
+    batch.dismissFailures();
   }
 </script>
 
@@ -52,13 +62,7 @@
       <div class="message">
         {#if notice}
           <span class="glyph {notice.kind}">
-            {#if notice.kind === "error"}
-              <Icon name="alert" size={15} />
-            {:else if notice.kind === "success"}
-              <Icon name="check" size={15} />
-            {:else}
-              <Icon name="info" size={15} />
-            {/if}
+            <Icon name={GLYPHS[notice.kind]} size={15} />
           </span>
           <span class="text">{notice.text}</span>
         {:else}

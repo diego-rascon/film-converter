@@ -22,8 +22,8 @@
     total: number;
     /** The grid's before/after toggle, which is the mode the viewer opens in. */
     showOriginal: boolean;
-    /** Shows the image in the file manager; the page owns the failure notice. */
-    onreveal: () => void;
+    /** Shows a file in the file manager; the page owns the failure notice. */
+    onreveal: (path: string) => void;
   }
 
   let { image, index, total, showOriginal, onreveal }: Props = $props();
@@ -142,7 +142,7 @@
     {details}
     onmode={(next) => (mode = next)}
     ontoggleDetails={() => (details = !details)}
-    {onreveal}
+    onreveal={() => onreveal(image.path)}
   />
 
   <div class="body">

@@ -3,6 +3,7 @@
   import SettingsPanel from "./SettingsPanel.svelte";
   import WindowControls from "$components/window/WindowControls.svelte";
   import { PopoverGroup, dismissOnOutside } from "$hooks/popover.svelte";
+  import { batch } from "$state/batch.svelte";
   import { session } from "$state/session.svelte";
 
   interface Props {
@@ -77,8 +78,8 @@
       <button
         class="btn btn-ghost clear"
         onclick={() => session.clear()}
-        disabled={session.developing}
-        title={session.developing
+        disabled={batch.running}
+        title={batch.running
           ? "Cancel the run before clearing the session"
           : "Remove every image and start again"}
       >
@@ -211,7 +212,7 @@
     margin-left: -2px;
   }
 
-  /* The shape and the drop come from `.popover` in app.css; these two are
+  /* The shape and the drop come from `.popover` in controls.css; these two are
      the only panels on the bar that need a size of their own. */
   .popover.wide {
     width: 320px;
