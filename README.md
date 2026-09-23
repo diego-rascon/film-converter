@@ -1,132 +1,209 @@
+<div align="center">
+
 # Film Converter
 
-A desktop app for batch-developing scanned colour negatives. Drop a roll of
-scans in, get positives out.
+**Batch-develop scanned colour negatives into positives.**
 
-It is a Rust + Svelte rewrite of `film_converter_v2.py`, and the image
-pipeline is a faithful port: for the same input file and settings it writes
-the same pixels the Python script did.
+Drop in a roll of scans, compare every frame before and after, and save the whole roll
+in one go.
 
-## How it develops an image
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Tauri 2](https://img.shields.io/badge/Tauri-2-24C8DB?logo=tauri&logoColor=white)
+![Rust](https://img.shields.io/badge/Rust-2024-000000?logo=rust&logoColor=white)
+![Svelte 5](https://img.shields.io/badge/Svelte-5-FF3E00?logo=svelte&logoColor=white)
 
-1. **Invert** the scan — `255 - value`.
-2. **Measure** black and white points per channel: the 0.5th and 99.5th
-   percentiles of the inverted image.
+</div>
+
+---
+
+## About
+
+A scanned colour negative doesn't look like a photo: the tones are inverted and the
+whole frame sits under the film's orange mask. Film Converter removes both. It
+balances every frame on its own and writes the finished positives to a folder you
+choose.
+
+The app started as a small Python script, [`film_converter_v2.py`](film_converter_v2.py),
+which is still in the repository. Film Converter is a native desktop rewrite of it in
+Rust and Svelte, and its colour pipeline is a faithful port: for the same scan and
+settings, it writes exactly the same pixels the script did.
+
+## Features
+
+- **Whole rolls at once.** Drop files or folders on the window (folders are searched
+  recursively), use the **Add** menu, or pass files on the command line.
+- **Accurate previews.** Every thumbnail shows the developed result, balanced using
+  the full-resolution scan, so the preview matches the file that gets saved.
+- **Before and after.** Flip the whole grid between scans and results, or open any
+  frame full screen with a draggable comparison wipe, zoom and pan.
+- **Grid and list views** with sorting and file-manager-style selection.
+- **Parallel developing** across all your CPU cores, with live progress and a cancel
+  button.
+- **JPEG, PNG or TIFF output.** JPEG is written without chroma subsampling (4:4:4), so
+  fine colour detail survives.
+- **Safe by default.** Existing files are never overwritten unless you turn that on.
+- **Light and dark themes** that follow your system by default. Both use neutral grey
+  surfaces, so the interface doesn't tint how you judge colour.
+- **Reads** JPEG, PNG, TIFF, BMP and WebP, and applies EXIF orientation on load.
+
+## How it works
+
+Each scan goes through three steps:
+
+1. **Invert** the image: every value `v` becomes `255 - v`.
+2. **Measure** a black point and a white point for each of the red, green and blue
+   channels: the 0.5th and 99.5th percentiles of the inverted image.
 3. **Stretch** each channel between its own two points, clipped to 0–255.
 
-Because red, green and blue each get their own black and white point, the
-orange mask of a colour negative is removed as a side effect.
+Because each channel gets its own black and white point, the orange mask disappears
+as a side effect, and every frame is balanced from its own content. If a channel's two
+points are less than one level apart, that channel is left as it is.
 
-A channel whose two points are less than one level apart is left alone, the
-same guard the Python has.
+## Installation
 
-## Running it
+### Build from source
+
+You'll need:
+
+- [Rust](https://rustup.rs/) 1.88 or newer
+- [Node.js](https://nodejs.org/) 20.19+ or 22.12+
+- [pnpm](https://pnpm.io/installation)
+- The system dependencies Tauri needs on your platform (WebKitGTK on Linux, for
+  example). Follow [Tauri's prerequisites guide](https://v2.tauri.app/start/prerequisites/).
 
 ```sh
+git clone https://github.com/diego-rascon/film-converter.git
+cd film-converter
 pnpm install
-pnpm tauri dev          # development, with hot reload
-pnpm tauri build        # a release bundle in src-tauri/target/release/bundle
+pnpm tauri build
 ```
 
-Scans can also be named on the command line, so the app can be wired up as the
-"open with" handler for image files:
+The installers are written to `src-tauri/target/release/bundle/`: `.deb`, `.rpm` and
+`.AppImage` on Linux, `.dmg` on macOS, and `.msi` on Windows. Film Converter is
+developed on Linux; Tauri can also build it for macOS and Windows.
+
+## Usage
+
+1. **Add your scans.** Drop images or a whole folder onto the window, or use
+   **Add → Add images…** or **Add folder…**.
+2. **Review them.** The thumbnails fill in with developed previews, starting with the
+   ones on screen. Use the before/after toggle in the toolbar to compare, or
+   double-click a frame to open it full screen.
+3. **Pick frames (optional).** Select the frames you want. If nothing is selected, the
+   whole roll is developed.
+4. **Save.** Click **Save…** and choose a folder. When the run finishes, **Show
+   output** opens that folder.
+
+Output format, quality, overwrite and theme are under the **gear** in the titlebar.
+
+You can also open scans straight from the command line, which lets you set Film
+Converter as the "Open with" app for image files:
 
 ```sh
 film-converter roll-01/*.tif
 ```
 
-## Using it
+### Keyboard and mouse
 
-Drop images or a folder onto the window, or use **Add** (images or a folder).
-Sub-folders are searched too.
+| In          | Input                              | Action                             |
+| ----------- | ---------------------------------- | ---------------------------------- |
+| Grid / list | Click, Ctrl/Cmd-click, Shift-click | Select, add to selection, select a range |
+|             | Click on empty space               | Clear the selection                |
+|             | Double-click or `Enter`            | Open in the viewer                 |
+|             | `Ctrl/Cmd` + `A`                   | Select all                         |
+|             | `Delete`                           | Remove the selected images         |
+|             | `Esc`                              | Clear the selection                |
+| Viewer      | `←` `→`                            | Previous / next image              |
+|             | `B`                                | Switch between before and after    |
+|             | Drag                               | Move the comparison wipe, or pan when zoomed |
+|             | Scroll, `+` `−`                    | Zoom                               |
+|             | `0`                                | Reset zoom                         |
+|             | `I`                                | Show or hide details               |
+|             | `Delete`                           | Remove the image                   |
+|             | `Esc`                              | Close the viewer                   |
 
-- **Grid or list**, with a size slider for the grid. Thumbnails on screen are
-  decoded first, so a large import fills in where you are looking.
-- **Pick** images the way a file manager does: a click picks one, Ctrl/Cmd-click
-  adds to the selection, Shift-click takes the run, and a click on the empty
-  background lets go. The checkboxes build a selection without a key held.
-  **Ctrl/Cmd + A** picks everything, **Del** removes the selection, **Esc**
-  clears it.
-- **Double-click** an image (or press Enter on it) to open it full screen.
-  **Before**, **Compare** and **After** switch the view; drag the divider to
-  wipe between the scan and the result, and scroll or press **+ −** to zoom.
-  **← →** move between images, **B** flips before/after, **I** shows the
-  details, **Del** removes, **Esc** closes.
-- **Save…** asks where to write, then develops the selection — or everything,
-  when nothing is picked.
-- The **gear** holds the format, quality, overwrite and theme; the
-  **hamburger** holds Credits and About.
+### Output
 
-Previews are generated from the full-resolution file but the clipping points
-are measured before downscaling, so what you see is what gets written.
+Each file is saved as `<name>_positive.<ext>`. If that name is already taken, a
+numbered copy is written instead; turn on **Overwrite existing files** to replace it.
+When two scans in one run share a name (frame `01` from two different rolls, for
+example), each still gets its own file.
 
-## Output
+| Format | Quality setting                                                    |
+| ------ | ------------------------------------------------------------------ |
+| JPEG   | 50–100, encoded 4:4:4 so colour detail survives                    |
+| PNG    | Lossless; the slider sets the compression level                    |
+| TIFF   | Lossless and uncompressed; the slider has no effect                |
 
-Files are written as `<name>_positive.<ext>`. If that name is taken, a
-numbered copy is written instead — turn on **Overwrite existing files** to
-replace it. Two scans that share a name in one run, like frame 01 of two
-rolls, always get a file each.
-
-| Format | Quality setting                                              |
-| ------ | ------------------------------------------------------------ |
-| JPEG   | 50–100, encoded 4:4:4 so colour detail survives              |
-| PNG    | Lossless; the slider picks a deflate level (`(100 - q) / 10`) |
-| TIFF   | Lossless and uncompressed; the slider does nothing            |
-
-Reads JPEG, PNG, TIFF, BMP and WebP. EXIF orientation is applied on load,
-which the Python did not do — negatives shot with a camera are often tagged
-sideways, and rotating cannot affect the colour pipeline.
-
-## Layout
-
-```
-src/                        Svelte 5 front end
-  app/                      the one route
-  components/               UI more than one feature draws
-  features/                 the roll, the shell and the viewer, a folder each
-  lib/api.ts                typed wrappers over the Rust commands
-  lib/files.ts              the desktop dialogs and the file manager
-  state/session.svelte.ts   the roll: images, order, selection, viewer
-  state/batch.svelte.ts     a develop run and its progress
-  state/notices.svelte.ts   the message on screen
-  state/settings.svelte.ts  preferences, persisted to local storage
-  hooks/ types/ utils/      shared behaviour, shapes and helpers
-  styles/                   tokens, reset, motion, shared controls
-src-tauri/src/
-  commands.rs               the commands the front end calls
-  batch.rs                  a develop run: output names, parallel develop
-  preview.rs                before/after previews from one decode
-  discovery.rs              supported formats and the folder walk
-  image_io.rs               decode, downscale, encode, save
-  processing.rs             measure (percentiles) and develop (one table pass)
-  error.rs                  the one error type
-```
-
-## Tests
+## Development
 
 ```sh
-pnpm test                     # cargo test — 38 tests
-pnpm lint                     # clippy, pedantic, warnings as errors
-pnpm check                    # svelte-check
+pnpm install
+pnpm tauri dev     # run the app with hot reload
+pnpm check         # type-check the front end (svelte-check)
+pnpm test          # run the Rust tests
+pnpm lint          # clippy (pedantic), warnings as errors
 ```
 
-The processing tests are the ones that matter. `percentile` has to match
-`np.percentile` exactly, down to the last bit: numpy computes its virtual
-index as `(q / 100) * (n - 1)` and interpolates from the upper sample once the
-fraction reaches 0.5. Writing either of those the other way round moves a
-clipping point by a fraction of a level, which is enough to change the
-developed pixels after `astype(uint8)` truncates. Two regression tests pin
-both down.
+`pnpm dev` on its own serves only the front end in a browser, where every call to the
+Rust side fails, so use `pnpm tauri dev`.
 
-The port never builds the inverted image — it reads the inversion's
-percentiles off the scan's own histogram, reversed, and folds the inversion
-into the stretch's lookup table — and a third test holds that to a literal
-invert, sort, stretch reference, byte for byte.
+### Project structure
 
-This port was checked against the Python on 708 generated images: every one
-produced byte-identical output, and the written PNG and TIFF files matched
-PIL's byte for byte.
+```
+src/                   Svelte 5 front end (SvelteKit, SPA mode)
+├── app/               the one route: the app shell
+├── features/          roll (the images), shell (the app's chrome), viewer
+├── components/        UI shared between features
+├── state/             the session, develop runs, notices, settings
+├── lib/               typed wrappers for the Rust commands and the desktop dialogs
+├── styles/            design tokens, reset, motion, shared controls
+└── hooks/ types/ utils/ data/
+src-tauri/src/         Rust back end (Tauri 2)
+├── commands.rs        the commands the front end calls
+├── batch.rs           a develop run: output names, parallel develop, cancel
+├── preview.rs         before/after previews from a single decode
+├── discovery.rs       supported formats and the folder walk
+├── image_io.rs        decode, downscale, encode, save
+├── processing.rs      measure (percentiles) and develop
+└── error.rs           the error type
+```
+
+[CLAUDE.md](CLAUDE.md) has more detailed architecture notes, including the app's flow,
+UI conventions and design tokens.
+
+### Matching the original script
+
+The processing tests are the most important ones in the project. Film Converter has to
+produce the same pixels as the Python script, so `percentile` must match
+`np.percentile` exactly, down to the last bit. Numpy computes its virtual index as
+`(q / 100) * (n - 1)` and interpolates from the upper sample once the fraction reaches
+0.5. Writing either of those the other way round moves a clipping point by a fraction of
+a level, which is enough to change the developed pixels. Regression tests cover both,
+and another test compares the optimised single-pass pipeline byte for byte against a
+literal invert → sort → stretch reference.
+
+The port was checked against the Python script on 708 generated images, and every one
+produced byte-identical output.
+
+## Contributing
+
+Issues and pull requests are welcome. Before you open a pull request, please run
+`pnpm check`, `pnpm test` and `pnpm lint`. Any change to `processing.rs` must keep the
+byte-exactness tests passing.
 
 ## Credits
 
-Original idea by Adrián Rascón. Developed by Diego Rascón and Adrián Rascón.
+- **Original idea:** Adrián Rascón
+- **Developed by:** Diego Rascón and Adrián Rascón
+
+Built with [Tauri](https://tauri.app/), [Svelte](https://svelte.dev/) and
+[SvelteKit](https://svelte.dev/docs/kit), with image processing by
+[`image`](https://github.com/image-rs/image),
+[`jpeg-encoder`](https://github.com/vstroebel/jpeg-encoder),
+[`fast_image_resize`](https://github.com/Cykooz/fast_image_resize) and
+[`rayon`](https://github.com/rayon-rs/rayon).
+
+## License
+
+Film Converter is released under the [MIT License](LICENSE).
