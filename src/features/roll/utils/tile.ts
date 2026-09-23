@@ -1,3 +1,6 @@
+import type { Attachment } from "svelte/attachments";
+
+import { onVisibility } from "$hooks/visibility";
 import { session } from "$state/session.svelte";
 import type { ImageItem } from "$types";
 import type { ImageTileProps } from "../types";
@@ -76,4 +79,12 @@ export function previewSource(
   showOriginal: boolean,
 ): string | undefined {
   return showOriginal ? image.original : image.developed;
+}
+
+/**
+ * For a tile's root: moves its preview up the decode queue while the tile is
+ * on screen, so a large import fills in where the user is looking.
+ */
+export function previewPriority(path: string): Attachment {
+  return onVisibility((visible) => session.previews.want(path, visible));
 }

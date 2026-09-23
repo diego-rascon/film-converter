@@ -1,6 +1,7 @@
 import { buildPreview, importPaths } from "$lib/api";
 import { CARD_PREVIEW_EDGE, PREVIEW_CONCURRENCY } from "$data/preview";
 import { counted, describeError } from "$utils/format";
+import { TaskQueue } from "$utils/task-queue";
 import { batch } from "./batch.svelte";
 import { notices } from "./notices.svelte";
 import type { ImageItem, ImportedImage } from "$types";
@@ -36,10 +37,14 @@ class Session {
   sortKey = $state<SortKey>("added");
   sortDirection = $state<SortDirection>("asc");
 
-  /** Paths waiting for a thumbnail, decoded a few at a time. */
-  #previewQueue: string[] = [];
-  #previewActive = 0;
-  #requested = new Set<string>();
+  /**
+   * Decodes the thumbnails a few at a time, the tiles on screen first — a
+   * tile reports itself as it scrolls in, so a large import fills in where
+   * the user is looking rather than strictly from the top.
+   */
+  readonly previews = new TaskQueue<string>(PREVIEW_CONCURRENCY, (path) =>
+    this.#loadPreview(path),
+  );
 
   /**
    * The image open in the fullscreen viewer, by path rather than position:
@@ -105,7 +110,7 @@ class Session {
 
       this.images = sorted([...this.images, ...fresh], this.sortKey, this.sortDirection);
       notices.show("info", `Added ${counted(fresh.length, "image")}`);
-      this.#queuePreviews(fresh.map((f) => f.path));
+      this.previews.request(fresh.map((f) => f.path));
     } catch (error) {
       notices.show("error", describeError(error));
     } finally {
@@ -121,29 +126,6 @@ class Session {
       selected: false,
       previewStatus: "idle",
     };
-  }
-
-  /** Asks for previews of `paths`, skipping any already asked for. */
-  #queuePreviews(paths: string[]) {
-    for (const path of paths) {
-      if (this.#requested.has(path)) continue;
-      this.#requested.add(path);
-      this.#previewQueue.push(path);
-    }
-    this.#pumpPreviews();
-  }
-
-  #pumpPreviews() {
-    while (this.#previewActive < PREVIEW_CONCURRENCY) {
-      const path = this.#previewQueue.shift();
-      if (path === undefined) return;
-
-      this.#previewActive += 1;
-      this.#loadPreview(path).finally(() => {
-        this.#previewActive -= 1;
-        this.#pumpPreviews();
-      });
-    }
   }
 
   async #loadPreview(path: string) {
@@ -179,7 +161,7 @@ class Session {
     }
 
     this.images = survivors;
-    for (const path of removing) this.#requested.delete(path);
+    this.previews.forget(removing);
     if (this.#anchor !== null && removing.has(this.#anchor)) this.#anchor = null;
     notices.show("info", `Removed ${counted(removed, "image")}`);
   }
@@ -202,8 +184,7 @@ class Session {
     this.#viewing = null;
     this.#nextSequence = 0;
     this.#anchor = null;
-    this.#requested.clear();
-    this.#previewQueue.length = 0;
+    this.previews.clear();
     batch.reset();
 
     // Whatever the last notice was about went with the images, so the clear

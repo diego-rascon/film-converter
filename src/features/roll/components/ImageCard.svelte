@@ -3,7 +3,7 @@
   import ImageMenu from "./ImageMenu.svelte";
   import StatusChip from "$components/image/StatusChip.svelte";
   import type { ImageTileProps } from "../types";
-  import { openOnEnter, previewSource } from "../utils/tile";
+  import { openOnEnter, previewPriority, previewSource } from "../utils/tile";
 
   /** One scan in grid view. Takes the same props a row does. */
   let {
@@ -21,7 +21,7 @@
   let source = $derived(previewSource(image, showOriginal));
 </script>
 
-<figure class:selected={image.selected}>
+<figure class:selected={image.selected} {@attach previewPriority(image.path)}>
   <div class="frame">
     <!-- A file manager's gestures: one click on the thumbnail picks the
          image, a double click opens it. The checkbox below is the way to

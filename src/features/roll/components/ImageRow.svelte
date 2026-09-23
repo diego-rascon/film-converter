@@ -9,7 +9,7 @@
   import StatusChip from "$components/image/StatusChip.svelte";
   import { formatBytes } from "$utils/format";
   import type { ImageTileProps } from "../types";
-  import { openOnEnter, previewSource } from "../utils/tile";
+  import { openOnEnter, previewPriority, previewSource } from "../utils/tile";
 
   /** One scan in list view. Takes a card's props plus the stripe. */
   interface Props extends ImageTileProps {
@@ -55,6 +55,7 @@
   onclick={onRow(onpick)}
   ondblclick={onRow(onopen)}
   role="presentation"
+  {@attach previewPriority(image.path)}
 >
   <input
     type="checkbox"
