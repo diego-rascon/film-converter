@@ -5,10 +5,9 @@
   import ViewerHeader from "./ViewerHeader.svelte";
   import ViewerStage from "./ViewerStage.svelte";
   import type { Mode } from "../types";
-  import { buildPreview } from "$lib/api";
-  import { FULL_PREVIEW_EDGE } from "$data/preview";
-  import { session } from "$state/session.svelte";
+  import { SharpPreviews } from "../state/sharp.svelte";
   import { ZoomPan } from "../state/zoom.svelte";
+  import { session } from "$state/session.svelte";
   import type { ImageItem } from "$types";
 
   /**
@@ -36,41 +35,15 @@
   let details = $state(false);
 
   const zoom = new ZoomPan();
+  const sharp = new SharpPreviews();
 
-  /** Higher-resolution pair for this image, once it has been fetched. */
-  let sharp = $state<{ path: string; original: string; developed: string } | null>(
-    null,
-  );
-
-  // Fetch a larger pair for whichever image is on screen. The card-sized
-  // preview stays visible until it arrives, so there is no blank frame.
-  $effect(() => {
-    const path = image.path;
-    if (sharp?.path === path) return;
-
-    let cancelled = false;
-    buildPreview(path, FULL_PREVIEW_EDGE)
-      .then((preview) => {
-        if (cancelled) return;
-        sharp = {
-          path,
-          original: preview.original,
-          developed: preview.developed,
-        };
-      })
-      .catch(() => {
-        // The card preview is already on screen; nothing more to show.
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  });
+  // A larger pair for whichever image is on screen, once the viewer has
+  // settled on it. The card-sized preview stays up until it arrives, so
+  // there is never a blank frame.
+  $effect(() => sharp.fetch(image.path));
 
   let pair = $derived(
-    sharp?.path === image.path
-      ? sharp
-      : { original: image.original, developed: image.developed },
+    sharp.get(image.path) ?? { original: image.original, developed: image.developed },
   );
   let ready = $derived(Boolean(pair.developed && pair.original));
 
