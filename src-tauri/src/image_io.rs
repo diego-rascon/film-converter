@@ -6,6 +6,8 @@ use std::path::Path;
 
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as BASE64;
+use fast_image_resize::images::{Image, ImageRef};
+use fast_image_resize::{FilterType as ResizeFilter, PixelType, ResizeAlg, ResizeOptions, Resizer};
 use image::codecs::png::{CompressionType, FilterType as PngFilter, PngEncoder};
 use image::codecs::tiff::TiffEncoder;
 use image::metadata::Orientation;
@@ -166,8 +168,9 @@ fn describe_orientation(orientation: Orientation) -> Option<&'static str> {
     })
 }
 
-/// Scales `img` down so its longest edge is at most `max_edge`. An image
-/// already that small is handed back as it is.
+/// Scales `img` down so its longest edge is at most `max_edge`, averaging
+/// each output pixel over the area it covers. An image already that small is
+/// handed back as it is.
 pub fn downscale(img: RgbImage, max_edge: u32) -> RgbImage {
     let (width, height) = img.dimensions();
     let longest = width.max(height);
@@ -179,7 +182,19 @@ pub fn downscale(img: RgbImage, max_edge: u32) -> RgbImage {
     let target_width = ((f64::from(width) * scale).round() as u32).max(1);
     let target_height = ((f64::from(height) * scale).round() as u32).max(1);
 
-    image::imageops::thumbnail(&img, target_width, target_height)
+    let source = ImageRef::new(width, height, img.as_raw(), PixelType::U8x3)
+        .expect("an RgbImage holds exactly width × height pixels of three bytes");
+    let mut target = Image::new(target_width, target_height, PixelType::U8x3);
+    Resizer::new()
+        .resize(
+            &source,
+            &mut target,
+            &ResizeOptions::new().resize_alg(ResizeAlg::Convolution(ResizeFilter::Box)),
+        )
+        .expect("both images are U8x3 and neither is empty");
+
+    RgbImage::from_raw(target_width, target_height, target.into_vec())
+        .expect("the resizer fills exactly the buffer it was given")
 }
 
 /// Encodes a preview as a JPEG `data:` URL for the webview to display.

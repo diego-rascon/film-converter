@@ -35,9 +35,13 @@ pub fn build(path: &Path, max_edge: u32) -> Result<Preview> {
     let mut developed = original.clone();
     processing::develop_with_levels(&mut developed, &levels);
 
+    let (original, developed) = rayon::join(
+        || image_io::jpeg_data_url(&original),
+        || image_io::jpeg_data_url(&developed),
+    );
     Ok(Preview {
-        original: image_io::jpeg_data_url(&original)?,
-        developed: image_io::jpeg_data_url(&developed)?,
+        original: original?,
+        developed: developed?,
         width,
         height,
     })
