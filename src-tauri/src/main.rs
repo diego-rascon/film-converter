@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    film_converter_lib::run()
+    film_converter_lib::run();
 }

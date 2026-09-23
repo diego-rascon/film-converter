@@ -1,7 +1,7 @@
 {
   "name": "film-converter",
   "version": "0.1.0",
-  "description": "",
+  "description": "Batch-develop scanned colour negatives",
   "type": "module",
   "scripts": {
     "dev": "vite dev",
@@ -10,6 +10,8 @@
     "prepare": "svelte-kit sync || echo ''",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+    "test": "cargo test --manifest-path src-tauri/Cargo.toml",
+    "lint": "cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings",
     "tauri": "tauri"
   },
   "license": "MIT",
