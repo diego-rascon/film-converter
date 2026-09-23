@@ -1,7 +1,7 @@
 /* Every animation in the app, and the one switch that turns them all off.
-   Declared here rather than per component: five of them were being restated
-   in eleven places. A component that wants a variation declares its own next
-   to the rule that uses it — `dialog-in` in Modal.svelte is the only one. */
+   Declared once here rather than per component, since most are shared. A
+   component that wants a variation declares its own next to the rule that
+   uses it — `dialog-in` in Modal.svelte is the only one. */
 
 @keyframes fade-in {
   from {

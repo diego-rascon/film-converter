@@ -163,7 +163,7 @@
    A panel hung off the control that owns it. The owner is the
    `.popover-host`, which is what the panel pins itself to; closing is the
    owner's job and follows one etiquette, `dismissOnOutside` in
-   [popover.svelte.ts](src/lib/popover.svelte.ts). */
+   [popover.svelte.ts](src/hooks/popover.svelte.ts). */
 .popover-host {
   position: relative;
 }

@@ -10,7 +10,8 @@ pnpm tauri dev                 # run the app (starts vite on :1420, then cargo)
 pnpm tauri build               # release bundle in src-tauri/target/release/bundle
 
 pnpm check                     # svelte-check (runs svelte-kit sync first)
-cargo test --manifest-path src-tauri/Cargo.toml            # 22 tests
+pnpm test                      # cargo test — 38 tests
+pnpm lint                      # clippy, pedantic, warnings as errors
 cargo test --manifest-path src-tauri/Cargo.toml percentile # a single test, by name substring
 ```
 
@@ -47,12 +48,14 @@ src/
 │   ├── shell/      the app's own chrome: the titlebar, the toolbar, the status
 │   │               bar and the panels they open
 │   └── viewer/     the fullscreen overlay, plus its own `state/`
-├── hooks/          $hooks — reusable behaviour bound from an `$effect`
+├── hooks/          $hooks — reusable behaviour, bound from an `$effect` or
+│                   attached to an element with `{@attach}`
 ├── lib/            $lib — one module per outside surface
-├── state/          $state — the two runes singletons
+├── state/          $state — the runes singletons
 ├── styles/         $styles — the stylesheet, in four parts plus its entry
-├── types/          $types — what the Rust side sends and takes
-└── utils/          $utils — pure helpers
+├── types/          $types — what the Rust side sends and takes, and the image
+│                   model built from it
+└── utils/          $utils — framework-free helpers
 ```
 
 The full listing, for reference — this drifts as files are added, so treat the folder
@@ -109,15 +112,21 @@ src/
 │       │   ├── ViewerStage.svelte
 │       │   └── Viewer.svelte
 │       ├── state/
+│       │   ├── sharp.svelte.ts
 │       │   └── zoom.svelte.ts
 │       └── types/
 │           └── index.ts
 ├── hooks/
-│   └── popover.svelte.ts
+│   ├── focus.ts
+│   ├── listening.ts
+│   ├── popover.svelte.ts
+│   └── visibility.ts
 ├── lib/
 │   ├── api.ts
 │   └── files.ts
 ├── state/
+│   ├── batch.svelte.ts
+│   ├── notices.svelte.ts
 │   ├── session.svelte.ts
 │   └── settings.svelte.ts
 ├── styles/
@@ -127,9 +136,12 @@ src/
 │   ├── motion.css
 │   └── tokens.css
 ├── types/
-│   └── index.ts
+│   ├── image.ts
+│   ├── index.ts
+│   └── ipc.ts
 ├── utils/
-│   └── format.ts
+│   ├── format.ts
+│   └── task-queue.ts
 └── app.html
 ```
 
@@ -150,76 +162,128 @@ both need it.
 Constants follow the same rule. `data/` holds the values more than one module reads,
 which is why the preview edges are [data/preview.ts](src/data/preview.ts) rather than
 riding along in `api.ts` — that file is command wrappers and nothing else — and the
-accepted extensions are [data/formats.ts](src/data/formats.ts), one list behind both
-the Rust importer and the dialog filter. A number only one component tunes stays in
-that component: `DISMISS_MS` in `NoticePanel` and `MENU_HEIGHT` in `ImageMenu` are
-nobody else's business, and moving them to `data/` would scatter them without
-sharing anything.
+format names are [data/formats.ts](src/data/formats.ts): the drop zone and the About
+dialog both list what the app reads, and the settings panel offers the output formats the
+settings validate a stored choice against. The *extensions* the importer accepts are not
+in it: they are the Rust side's `SUPPORTED_EXTENSIONS`, and the file dialog asks for them
+(`supported_extensions`) rather than keeping a copy that could drift. A number only one
+component tunes stays in that component: `DISMISS_MS` in `NoticePanel` and `MENU_HEIGHT`
+in `ImageMenu` are nobody else's business, and moving them to `data/` would scatter them
+without sharing anything.
 
 [+page.svelte](src/app/+page.svelte), the one route, is the app
 *shell* only: the bars, whichever view is showing, and the overlays. The two
 views own their own layout ([ImageGrid](src/features/roll/components/ImageGrid.svelte) and
 [ImageList](src/features/roll/components/ImageList.svelte)), so the page holds no `--col-*`
-widths and no `{#each}` of its own.
+widths and no `{#each}` of its own. While the viewer or a dialog is up the shell is
+`inert` — out of the tab order and out of the pointer's reach — and its shortcuts stand
+down; whatever is on top runs its own keyboard.
 
-State lives in two singleton classes using Svelte 5 runes, exported as instances:
+State lives in four singleton classes using Svelte 5 runes, exported as instances. They
+depend on each other in one direction only — `session` → `batch` → `notices` — so none of
+them imports the page or a component:
 
-- [session.svelte.ts](src/state/session.svelte.ts) — the loaded images, their order,
-  selection, viewer index, batch progress, and the preview queue (4 decodes at a time).
+- [session.svelte.ts](src/state/session.svelte.ts) — the roll: the loaded images, their
+  order, the selection, and the image open in the viewer, held by *path* so re-sorting
+  never moves the viewer off it (`viewer` derives the image and its index from that).
   `images` is the one order the app has — the grid, the viewer's index and shift-click
   ranges all read it — so `sortBy` reorders the array itself rather than handing the list
-  a second view of the same images. `ImageItem.sequence` keeps the import order
-  recoverable, which is what a third click on a column goes back to. Selection is
-  wholly the session's, `pick(path, modifiers)` included: the shift-click anchor lives
-  beside the images it points into, so removing or clearing drops it too. `pick` is
-  where the file-explorer semantics are decided — a plain click *replaces* the
+  a second view of the same images, through one shared `Intl.Collator`. `ImageItem.sequence`
+  keeps the import order recoverable, which is what a third click on a column goes back to.
+  Selection is wholly the session's, `pick(path, modifiers)` included: the shift-click
+  anchor lives beside the images it points into, so removing or clearing drops it too.
+  `pick` is where the file-explorer semantics are decided — a plain click *replaces* the
   selection, `toggle` adds to or removes from it, `extend` takes the run from the
   anchor — because the range is read off `images` and the anchor is part of the
-  selection, not of whichever view was clicked.
+  selection, not of whichever view was clicked. `targets` is what **Save…** develops:
+  the selection, or everything when nothing is picked.
+  The session owns the preview queue, a [TaskQueue](src/utils/task-queue.ts) that decodes
+  `PREVIEW_CONCURRENCY` at a time; each tile reports itself as it scrolls in and out
+  (`previewPriority` in [tile.ts](src/features/roll/utils/tile.ts)), and a tile on screen
+  jumps the queue, so a large import fills in where the user is looking.
   The counting members — `total`, `selected`, `hasSelection`, `allSelected` — are
   `$derived`, not getters. A getter recomputes per read, and `hasSelection` is passed
   to every card and every row, so it would scan the whole roll once per image on
-  every pick. Add a new one as `$derived` for the same reason.
-- [settings.svelte.ts](src/state/settings.svelte.ts) — output folder/format/quality plus
-  theme and view mode, persisted to local storage. Nothing auto-saves: callers invoke
-  `settings.save()` explicitly after a change. `directory` is not a setting the user
-  edits: **Save…** asks for the destination on every run and stores the answer there,
-  where it seeds the next dialog and is what **Show output** opens.
+  every pick. Add a new one as `$derived` for the same reason. `find` goes through a
+  derived path index for the same reason: it is rebuilt when the roll changes, not when
+  an image's status or selection does.
+- [batch.svelte.ts](src/state/batch.svelte.ts) — a develop run: `running`, the run's own
+  `total` and `completed` count, and the last run's `failures`. It is handed its targets
+  and the output settings rather than reaching for them, marks each image as its result
+  arrives, and posts the summary. The status bar counts against the run's `total`, fixed
+  when it started, so picking images mid-run changes what the next **Save…** takes and
+  not the progress of this one. `session.clear()` resets it.
+- [notices.svelte.ts](src/state/notices.svelte.ts) — the one message on screen.
+  Anything can post one (`notices.show(kind, text)`) and the newest replaces what was
+  there; `clear(notice)` only takes down the notice it is given, so a timer set for an
+  old message cannot clear a newer one.
+- [settings.svelte.ts](src/state/settings.svelte.ts) — output format/quality/overwrite
+  plus theme, view mode and card size, persisted to local storage. They are read back
+  *synchronously* as the module loads — so the first frame is already in the right theme
+  and view, and nothing waits on the Rust side before rendering — and checked field by
+  field, since storage can hold a value an older version wrote. An `$effect.root` in the
+  constructor keeps them in step from then on: it paints the theme and writes every
+  change back the moment it happens, so a component only ever assigns — there is no
+  `save()`. `directory` is not a setting the user edits: **Save…** asks for the
+  destination on every run and stores the answer there, where it seeds the next dialog
+  and is what **Show output** opens. Until a folder has been chosen once, it is seeded
+  with the system's pictures folder (`default_output_dir`).
 
 One module per outside surface, and components go through them rather than reaching
 past: [api.ts](src/lib/api.ts) holds one thin typed wrapper per Rust command and nothing
 else, and [files.ts](src/lib/files.ts) holds the Tauri dialog and opener calls — the two
 file pickers, the output picker, and the two ways of handing a path to the file manager,
-each of which reports failure by leaving a `session.notice` rather than throwing at a
-component. [types/index.ts](src/types/index.ts) mirrors the serde structs in `commands.rs`,
-which all use `rename_all = "camelCase"`, so nothing that is only a UI shape belongs in
-it — a card's and a row's shared props are
-[roll/types/index.ts](src/features/roll/types/index.ts), and the callbacks bound into
-them are [roll/utils/tile.ts](src/features/roll/utils/tile.ts): the grid and the list
-answer a tile identically, so `tileCallbacks` and `previewSource` are written once
-there rather than in each view.
+each of which reports failure by posting a notice rather than throwing at a component.
+[types/ipc.ts](src/types/ipc.ts) mirrors the serde structs on the Rust side, which all
+use `rename_all = "camelCase"`, and [types/image.ts](src/types/image.ts) is the app's own
+`ImageItem` built from them; [types/index.ts](src/types/index.ts) re-exports both behind
+`$types`. Nothing that is only one feature's UI shape belongs there — a card's and a
+row's shared props are [roll/types/index.ts](src/features/roll/types/index.ts), and the
+callbacks bound into them are [roll/utils/tile.ts](src/features/roll/utils/tile.ts): the
+grid and the list answer a tile identically, so `tileCallbacks`, `previewSource`,
+`previewPriority` and `deselectOnBackdrop` are written once there rather than in each view.
 
 The non-visual pieces sort the same way by who needs them:
-[format.ts](src/utils/format.ts) (`plural`, `counted`, `formatBytes`, `formatDate`, `describeError`) is
-`utils/` because it is pure and everything calls it,
-[popover.svelte.ts](src/hooks/popover.svelte.ts) (`dismissOnOutside`, `PopoverGroup`) is
-`hooks/` because the shell and the roll both bind it from an `$effect`, and
-[zoom.svelte.ts](src/features/viewer/state/zoom.svelte.ts) stays inside
+[format.ts](src/utils/format.ts) (`plural`, `counted`, `formatBytes`, `formatDate`,
+`describeError`) and [task-queue.ts](src/utils/task-queue.ts) are `utils/` because they
+are framework-free and know nothing of the app. `hooks/` is behaviour more than one place
+binds: [popover.svelte.ts](src/hooks/popover.svelte.ts) (`dismissOnOutside`,
+`PopoverGroup`) from an `$effect` in the shell and the roll;
+[listening.ts](src/hooks/listening.ts), which keeps an asynchronously registered Tauri
+listener for exactly the life of an effect (the window controls and the page's drag and
+drop); and two attachments — [visibility.ts](src/hooks/visibility.ts), one shared
+`IntersectionObserver` for every tile, and [focus.ts](src/hooks/focus.ts), `holdFocus`,
+which takes focus into a dialog or the viewer as it opens and hands it back to whatever
+had it as it closes. [zoom.svelte.ts](src/features/viewer/state/zoom.svelte.ts) and
+[sharp.svelte.ts](src/features/viewer/state/sharp.svelte.ts) stay inside
 `features/viewer/state/` — the feature's own mirror of top-level `state/` — because
-nothing else has a stage to pan.
+nothing else has a stage to pan or wants a 2000px pair.
 
-**Rust side** — three modules under [src-tauri/src/](src-tauri/src/):
+**Rust side** — seven modules under [src-tauri/src/](src-tauri/src/), layered so the
+commands call the app logic and the app logic calls the primitives, never the other way:
 
-- [processing.rs](src-tauri/src/processing.rs) — invert, per-channel percentiles, stretch.
-  Pure functions over `RgbImage`, no I/O.
-- [image_io.rs](src-tauri/src/image_io.rs) — decode, recursive folder walk, downscale,
-  encode, output naming, and `probe`, which reads a file's header for the properties
-  dialog without decoding its pixels.
-- [commands.rs](src-tauri/src/commands.rs) — the seven `#[tauri::command]`s, all registered
-  in [lib.rs](src-tauri/src/lib.rs).
+- [commands.rs](src-tauri/src/commands.rs) — the eight `#[tauri::command]`s, all registered
+  in [lib.rs](src-tauri/src/lib.rs). Each is a thin doorway: it moves the work onto the
+  blocking pool (`blocking`) and hands it to the module that does it, and it owns the
+  DTOs only it produces (`ImportedImage`, `ImageMetadata`).
+- [batch.rs](src-tauri/src/batch.rs) — a develop run: the `BatchControl` cancel flag, the
+  output names planned up front, and `run`, which reports each image through a plain
+  callback — so a whole run is testable without Tauri.
+- [preview.rs](src-tauri/src/preview.rs) — the before/after pair from one decode.
+- [discovery.rs](src-tauri/src/discovery.rs) — `SUPPORTED_EXTENSIONS` and the folder walk.
+  An entry's type comes with the listing and its size with one stat, a file reached two
+  ways is taken once (identity is the resolved path), and a link pointing back up the
+  tree is walked once rather than for ever.
+- [image_io.rs](src-tauri/src/image_io.rs) — decode, `probe` (a file's header for the
+  properties dialog, without decoding its pixels), downscale, encode, and `save_image`.
+- [processing.rs](src-tauri/src/processing.rs) — measure and develop. Pure functions over
+  `RgbImage`, no I/O.
+- [error.rs](src-tauri/src/error.rs) — the one `Error` enum (`thiserror`). Each message is
+  what the user reads, and it serializes as that message, so a command rejects with a
+  plain string whichever one failed.
 
 Adding a command means touching four places: the function in `commands.rs`, the
-`invoke_handler!` list in `lib.rs`, a wrapper in `api.ts`, and its types in `types/`.
+`invoke_handler!` list in `lib.rs`, a wrapper in `api.ts`, and its types in `types/ipc.ts`.
 
 ## The byte-exactness invariant
 
@@ -237,23 +301,49 @@ pin both down with values where the wrong form differs in the last bit. Similarl
 `high - low < 1.0` is left untouched. The port was verified against the Python on 708
 generated images with byte-identical output; keep it that way.
 
+The pipeline never builds the inverted image, and that is not a departure either.
+Inversion maps `v` to `255 - v`, so `measure` reads the inversion's percentiles off the
+scan's own histogram reversed, and `develop_table` composes the inversion and the stretch
+into one 256-entry table per channel — one read to measure, one pass to develop.
+`develop_matches_the_three_step_pipeline` holds it to a literal invert → sorted
+percentile → stretch reference byte for byte, over a flat channel and an image large
+enough to be measured in pieces; any change to the pipeline has to keep it passing.
+
 Deliberate departures from the Python, both safe: EXIF orientation is applied on load
 (rotation cannot affect the colour pipeline), and the output name gets a numbered suffix
 instead of clobbering unless **Overwrite** is on.
 
 ## Preview pipeline
 
-Previews are honest: `build_preview` decodes the full-resolution file, measures the
-clipping points on it (`invert_and_measure`), then applies those levels to a *downscaled*
-copy (`develop_with_levels`). Measuring after downscaling would show the user something
-different from what gets written. Both preview images come back as JPEG `data:` URLs from
-a single decode — the CSP in `tauri.conf.json` allows `data:` in `img-src`, so any new
-image source needs that CSP updated too.
+Previews are honest: `preview::build` decodes the full-resolution file, measures the
+clipping points on it (`processing::measure`), then applies those levels to a
+*downscaled* copy (`develop_with_levels`). Measuring after downscaling would show the user
+something different from what gets written. The downscale is `fast_image_resize`'s box
+filter, and the two JPEG encodes run side by side (`rayon::join`).
+
+Both preview images come back as JPEG `data:` URLs from a single decode. A binary
+response with object URLs was measured and rejected: base64 costs well under a
+millisecond against a decode of hundreds, and object URLs would have to be revoked by
+hand wherever an image leaves. The CSP in `tauri.conf.json` allows `data:` in `img-src`
+(the checkbox tick is one too), so any new image source needs that CSP updated as well.
 
 Cards request `CARD_PREVIEW_EDGE` (720px); the fullscreen viewer re-requests at
-`FULL_PREVIEW_EDGE` (2000px). Both, and the four-at-a-time `PREVIEW_CONCURRENCY`,
-are in [data/preview.ts](src/data/preview.ts), because the session and the viewer
-each read them.
+`FULL_PREVIEW_EDGE` (2000px) through
+[SharpPreviews](src/features/viewer/state/sharp.svelte.ts), which only asks once the
+viewer has stayed on an image for 150ms — holding an arrow key must not queue a full
+decode per image passed — and keeps the last six pairs, so stepping back is instant. Both
+edges, and the four-at-a-time `PREVIEW_CONCURRENCY`, are in
+[data/preview.ts](src/data/preview.ts), because the session and the viewer each read them.
+
+Measuring is the one pass split across cores, and only when the caller is *not* already
+one of rayon's workers: a preview measures from a blocking thread, so its histogram is
+counted in pieces across the pool; a run develops one scan per worker, so there every
+pass stays on the worker's own thread. Two reasons, both learned the hard way. A worker
+waiting on its pieces steals other work meanwhile — in a run, possibly a whole other
+scan, holding two in memory where one was meant. And rayon carries each piece's
+accumulator down its recursion, so the 6 KB of counts are boxed: by value, nested under
+stolen pieces of other previews, they overflowed a worker's stack.
+`measuring_many_scans_at_once_stays_off_the_workers_stacks` is the load that found it.
 
 ## The custom window frame
 
@@ -291,7 +381,9 @@ sharper pair, the keyboard — and hands the drawing to
 [ViewerStage](src/features/viewer/components/ViewerStage.svelte) (the pictures, the wipe
 and the drag), [ViewerDetails](src/features/viewer/components/ViewerDetails.svelte) (the
 sidebar) and [ViewerPod](src/features/viewer/components/ViewerPod.svelte) (one floating
-glass cluster, used twice). Zoom and pan are not component state at all but
+glass cluster, used twice). The sharper pair is
+[SharpPreviews](src/features/viewer/state/sharp.svelte.ts)' job, not the component's.
+Zoom and pan are not component state at all but
 [ZoomPan](src/features/viewer/state/zoom.svelte.ts), which is what lets the keyboard, the zoom pod and
 the drag all drive one control without passing four setters around; the stage binds
 itself into `zoom.stage` because every measurement — the pan clamp, the wipe, the
@@ -299,16 +391,41 @@ wheel's origin — is taken against that one rectangle.
 
 ## Batch runs
 
-`develop_batch` fans out over rayon and emits a `develop://progress` event per image,
-which `+page.svelte` forwards to `session.applyProgress`. Cancellation is a shared
-`AtomicBool` in the managed `BatchControl` state: images already in flight finish, and
-the front end resets anything still marked `developing` back to `pending`.
+`develop_batch` takes a `Channel<BatchProgress>` and sends one message per image, so the
+progress stream belongs to the call that started it: `api.developBatch` creates the
+channel and `batch.develop` handles each message, and nothing is global. The run itself
+is `batch::run`, which takes a plain callback instead of the channel so the whole of it
+is testable without Tauri.
+
+Every output name is planned before anything is written, in the order the front end
+sent the paths: frame 01 of two rolls becomes `01_positive.jpg` and
+`01_positive (2).jpg` whether or not **Overwrite** is on, rather than both being written
+to one file by two workers at once. Without Overwrite a name already on disk is passed
+over too, and the file is then created with `create_new`, so a name taken between the
+plan and the write fails instead of clobbering. Then the scans fan out over rayon.
+Cancellation is a shared `AtomicBool` in the managed `BatchControl` state: images already
+in flight finish, and the front end resets anything still marked `developing` back to
+`pending`.
 
 ## Front-end conventions
 
 - Svelte 5 runes throughout (`$state`, `$props`, `$derived`). No stores, no
   `createEventDispatcher` — components take callback props (`onopen`, `onremove`,
-  `ontoggleSelect`).
+  `ontoggleSelect`). `compilerOptions.runes` in [svelte.config.js](svelte.config.js)
+  enforces it: legacy syntax — `export let`, `$:`, `on:click` — fails the build rather
+  than quietly switching a component to legacy mode.
+- A constant a component reads — an icon's paths, a status's label, a list of choices —
+  goes in `<script module>`, so it is built once rather than once per instance; the
+  per-image components are on screen hundreds of times. `Icon.svelte` exports its
+  `IconName` from there for the same reason.
+- State that is only ever replaced whole — a notice, a run's failures, a file's
+  metadata — is `$state.raw`, which skips the deep proxy. A value that resets whenever
+  something else changes but can also be set by hand is a writable `$derived` rather
+  than state an `$effect` resets: `detailsOpen` in `NoticePanel` folds back up whenever
+  the failures change.
+- Behaviour an element carries is an attachment (`{@attach …}`): `holdFocus` on the
+  dialogs and the viewer, `previewPriority` on every tile. Manual listeners go through
+  `svelte/events`' `on`, which keeps them in order with the handlers Svelte delegates.
 - Styling is plain CSS. [app.css](src/styles/app.css) is four `@import`s and nothing else:
   [tokens.css](src/styles/tokens.css) (every colour, radius and measure, and both
   themes), [base.css](src/styles/base.css) (the reset and element defaults),
@@ -330,10 +447,11 @@ the front end resets anything still marked `developing` back to `pending`.
   instead: `.segmented button` reads `var(--segmented-rest, var(--text-muted))`, and
   the toolbar sets `--segmented-rest` on its track because its children are glyphs
   rather than words. Give a new shared rule the same escape hatch.
-- Dark mode is `:root[data-theme="dark"]`, set from `settings.applyTheme()`. The theme preference is
-  `auto` by default, and `tokens.css` carries no `prefers-color-scheme` query, so `auto` is
-  resolved in JS: `settings.resolvedTheme` is what reaches the attribute, and a `matchMedia`
-  listener repaints when the system flips mid-session. Surfaces are
+- Dark mode is `:root[data-theme="dark"]`, set by the settings' own effect. The theme
+  preference is `auto` by default, and `tokens.css` carries no `prefers-color-scheme`
+  query, so `auto` is resolved in JS: `settings.resolvedTheme` is what reaches the
+  attribute, and it reads the system through `svelte/reactivity`'s `MediaQuery`, so a
+  flip mid-session repaints on its own. Surfaces are
   deliberately neutral grey so chrome does not bias how developed colours look.
   Light mode carries two accents because the one colour has two jobs: `--accent` is the
   accent drawn *as* text or a border on a white surface, and `--accent-solid` is the
@@ -447,8 +565,8 @@ the front end resets anything still marked `developing` back to `pending`.
 - The two views are file-explorer shaped: **one click picks an image, a double click
   opens it**. Ctrl/cmd-click adds one to the selection without dropping the rest,
   shift-click takes the whole run from the last one picked, and a plain click is the
-  whole selection — everything else lets go, which is why the grid's backdrop click
-  and `Escape` read as the same gesture. The mapping from a modifier to a
+  whole selection — everything else lets go, which is why a click on either view's
+  backdrop and `Escape` read as the same gesture. The mapping from a modifier to a
   `PickModifiers` flag is written once in
   [roll/utils/tile.ts](src/features/roll/utils/tile.ts) beside the rest of what a card
   and a row answer identically, never in a component. What differs between the two
@@ -517,9 +635,11 @@ the front end resets anything still marked `developing` back to `pending`.
   padding of their own and the list's headings do not, so a padded bar measures
   differently in the two views and the images jump when the view is switched.
 - The header sits *inside* the scroll container in both views so it can be `sticky`.
-  In grid view that puts it in the path of the backdrop click that clears the selection,
-  which is why that handler tests `event.target === event.currentTarget` rather than
-  having children stop propagation.
+  That puts it in the path of the backdrop click that clears the selection, which is why
+  `deselectOnBackdrop` tests the click's target rather than having children stop
+  propagation: the elements that count as background — the scroller, and the grid or
+  the list inside it — carry `data-backdrop`, so a click in the gaps between cards or
+  below the last row lets go, and one on the header or a tile does not.
 - List rows are deliberately full-bleed — no gutter on `.list`, no gap, no radius — so
   the zebra stripes run as continuous bands the way Finder's do. That is also what lets
   the sticky header hide the rows passing under it, and what makes a run of selected
@@ -608,7 +728,22 @@ the front end resets anything still marked `developing` back to `pending`.
 ## Build notes
 
 `image` is built with `default-features = false` to keep AVIF (ravif/dav1d) out of the
-dependency tree. JPEG encoding uses the separate `jpeg-encoder` crate because `image`'s
-encoder cannot disable chroma subsampling, and the Python writes 4:4:4 (`subsampling=0`).
+dependency tree; `fast_image_resize` declares its own `image` dependency the same way,
+so adding it did not bring AVIF back. JPEG encoding uses the separate `jpeg-encoder`
+crate because `image`'s encoder cannot disable chroma subsampling, and the Python writes
+4:4:4 (`subsampling=0`). Its `simd` feature was measured and left off: under 10% faster
+on a full scan, and it changes the encoded bytes. `image`'s decoder refuses anything over
+512 MB by default, which a 16-bit medium-format scan can pass, so `image_io` raises the
+cap to 4 GiB — room for a 4×5 sheet at 5000 dpi, still a decode error for a corrupt
+header claiming more.
 `[profile.dev.package."*"] opt-level = 3` is there because debug-build image decoding is
 otherwise unusably slow.
+
+The crate is edition 2024 and carries its lint policy in `Cargo.toml`: `unsafe_code` is
+forbidden, and clippy runs pedantic with a handful of deliberate allowances — the casts
+image arithmetic makes on purpose, exact float comparisons (the port compares to the last
+bit), and arguments Tauri hands over by value. `pnpm lint` fails on any warning.
+
+`pnpm tauri dev` shares its webview storage (origin `localhost:1420`) with every other dev
+session, so settings changed while testing — the last output folder included — persist
+into the next one.

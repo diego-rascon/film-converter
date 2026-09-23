@@ -1,8 +1,6 @@
 /**
- * How the app words numbers and errors. These were spread across
- * `session.svelte.ts` and the components that needed them, which meant a
- * row importing `formatBytes` from the session store and two copies of the
- * same error-to-string fallback.
+ * How the app words numbers, dates and errors — one place, so a row, a
+ * dialog and a notice all say the same thing the same way.
  */
 
 export function plural(count: number, word: string): string {
