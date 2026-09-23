@@ -26,7 +26,6 @@
     if (chosen === null) return;
 
     settings.directory = chosen;
-    settings.save();
     await session.develop();
   }
 </script>

@@ -2,7 +2,7 @@
   import Icon from "$components/Icon.svelte";
   import { counted } from "$utils/format";
   import { session } from "$state/session.svelte";
-  import { settings } from "$state/settings.svelte";
+  import { CARD_SIZE_RANGE, settings } from "$state/settings.svelte";
 
   interface Props {
     showOriginal: boolean;
@@ -13,12 +13,7 @@
     onreveal: () => void;
   }
 
-  let {
-    showOriginal,
-    ontoggleCompare,
-    oninfo,
-    onreveal,
-  }: Props = $props();
+  let { showOriginal, ontoggleCompare, oninfo, onreveal }: Props = $props();
 
   let selectedCount = $derived(session.selected.length);
   /** The properties dialog is about one file, so it needs exactly one. */
@@ -28,17 +23,14 @@
 </script>
 
 <div class="toolbar">
-  <!-- How the images are shown, mirrored from the right end it used to sit
-       at: the view switch is on the gutter and stays there, so the thumbnail
-       slider coming and going with grid view moves only itself. -->
+  <!-- How the images are shown, ordered outwards from the gutter: the view
+       switch sits on it and stays there, so the thumbnail slider coming and
+       going with grid view moves only itself. -->
   <div class="left">
     <div class="segmented">
       <button
         class:active={settings.viewMode === "grid"}
-        onclick={() => {
-          settings.viewMode = "grid";
-          settings.save();
-        }}
+        onclick={() => (settings.viewMode = "grid")}
         aria-label="Grid view"
         title="Grid view"
       >
@@ -46,10 +38,7 @@
       </button>
       <button
         class:active={settings.viewMode === "list"}
-        onclick={() => {
-          settings.viewMode = "list";
-          settings.save();
-        }}
+        onclick={() => (settings.viewMode = "list")}
         aria-label="List view"
         title="List view"
       >
@@ -63,11 +52,10 @@
         <Icon name="image" size={13} />
         <input
           type="range"
-          min="140"
-          max="420"
-          step="10"
+          min={CARD_SIZE_RANGE.min}
+          max={CARD_SIZE_RANGE.max}
+          step={CARD_SIZE_RANGE.step}
           bind:value={settings.cardSize}
-          onchange={() => settings.save()}
         />
       </label>
     {/if}
@@ -92,9 +80,7 @@
       disabled={!single}
       onclick={oninfo}
       aria-label="Properties"
-      title={single
-        ? "Properties"
-        : "Select one image to see its properties"}
+      title={single ? "Properties" : "Select one image to see its properties"}
     >
       <Icon name="info" size={16} />
     </button>
@@ -148,12 +134,8 @@
     display: flex;
     align-items: center;
     gap: 4px;
-    min-width: 0;
-  }
-
-  .left,
-  .right {
     flex: 1 1 0;
+    min-width: 0;
   }
 
   .right {
@@ -177,7 +159,7 @@
     width: 84px;
   }
 
-  /* Only what is this switch's own: `.segmented` in app.css carries the
+  /* Only what is this switch's own: `.segmented` in controls.css carries the
      track, the hover and the pressed state. These are glyphs rather than
      words, so they take a square and the fainter resting colour an icon
      wants — set as the track's property, which is how the shared rule

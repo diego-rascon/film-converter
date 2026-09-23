@@ -1,39 +1,35 @@
-<script lang="ts">
-  import { settings } from "$state/settings.svelte";
+<script lang="ts" module>
   import type { Theme } from "$state/settings.svelte";
-  import type { OutputFormat } from "$types";
 
-  const formats: { value: OutputFormat; label: string; note: string }[] = [
-    { value: "jpg", label: "JPEG", note: "4:4:4, no chroma subsampling" },
-    { value: "png", label: "PNG", note: "Lossless; quality sets compression" },
-    { value: "tiff", label: "TIFF", note: "Lossless, uncompressed" },
-  ];
-
-  const themes: { value: Theme; label: string }[] = [
+  const THEMES: { value: Theme; label: string }[] = [
     { value: "auto", label: "Auto" },
     { value: "light", label: "Light" },
     { value: "dark", label: "Dark" },
   ];
+</script>
+
+<script lang="ts">
+  import { OUTPUT_FORMATS } from "$data/formats";
+  import { QUALITY_RANGE, settings } from "$state/settings.svelte";
+
+  /**
+   * The output and appearance preferences. The fields only assign: the
+   * settings save themselves the moment anything changes.
+   */
+
+  /** Unique to this panel, so each label's `for` finds its own field. */
+  const id = $props.id();
 
   let activeFormat = $derived(
-    formats.find((f) => f.value === settings.format) ?? formats[0],
+    OUTPUT_FORMATS.find((f) => f.value === settings.format) ?? OUTPUT_FORMATS[0],
   );
-
-  function chooseTheme(theme: Theme) {
-    settings.setTheme(theme);
-    settings.save();
-  }
 </script>
 
 <div class="panel">
   <div class="field">
-    <label class="field-label" for="format">Format</label>
-    <select
-      id="format"
-      bind:value={settings.format}
-      onchange={() => settings.save()}
-    >
-      {#each formats as format (format.value)}
+    <label class="field-label" for="{id}-format">Format</label>
+    <select id="{id}-format" bind:value={settings.format}>
+      {#each OUTPUT_FORMATS as format (format.value)}
         <option value={format.value}>{format.label}</option>
       {/each}
     </select>
@@ -42,28 +38,23 @@
 
   {#if settings.qualityApplies}
     <div class="field">
-      <label class="field-label" for="quality">
+      <label class="field-label" for="{id}-quality">
         {settings.format === "png" ? "Compression" : "Quality"}
         <span class="value">{settings.quality}</span>
       </label>
       <input
-        id="quality"
+        id="{id}-quality"
         type="range"
-        min="50"
-        max="100"
+        min={QUALITY_RANGE.min}
+        max={QUALITY_RANGE.max}
         step="1"
         bind:value={settings.quality}
-        onchange={() => settings.save()}
       />
     </div>
   {/if}
 
   <label class="toggle">
-    <input
-      type="checkbox"
-      bind:checked={settings.overwrite}
-      onchange={() => settings.save()}
-    />
+    <input type="checkbox" bind:checked={settings.overwrite} />
     <span>
       Overwrite existing files
       <em>Off: a numbered copy is written instead</em>
@@ -71,14 +62,14 @@
   </label>
 
   <div class="field appearance">
-    <span class="field-label" id="theme-label">Theme</span>
-    <div class="segmented" role="radiogroup" aria-labelledby="theme-label">
-      {#each themes as option (option.value)}
+    <span class="field-label" id="{id}-theme">Theme</span>
+    <div class="segmented" role="radiogroup" aria-labelledby="{id}-theme">
+      {#each THEMES as option (option.value)}
         <button
           role="radio"
           aria-checked={settings.theme === option.value}
           class:active={settings.theme === option.value}
-          onclick={() => chooseTheme(option.value)}
+          onclick={() => (settings.theme = option.value)}
         >
           {option.label}
         </button>
@@ -124,7 +115,7 @@
   }
 
   /* The three share the panel's width evenly; the track and the pressed
-     state are `.segmented` in app.css. */
+     state are `.segmented` in controls.css. */
   .segmented button {
     flex: 1;
     padding: 6px 0;

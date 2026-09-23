@@ -28,7 +28,6 @@
    * [files.ts](src/lib/files.ts) owns the dialogs, so what is left here is
    * the wiring between them.
    */
-  let ready = $state(false);
   let dragging = $state(false);
   let showOriginal = $state(false);
   let creditsOpen = $state(false);
@@ -56,15 +55,9 @@
     ),
   );
 
+  // Scans named on the command line, e.g. opened from a file manager.
   onMount(() => {
-    (async () => {
-      await settings.load();
-      ready = true;
-
-      // Scans named on the command line, e.g. opened from a file manager.
-      const initial = await startupPaths();
-      if (initial.length > 0) await session.add(initial);
-    })();
+    startupPaths().then((paths) => session.add(paths));
   });
 
   function onkeydown(event: KeyboardEvent) {
@@ -110,9 +103,7 @@
   {/if}
 
   <main>
-    {#if !ready}
-      <div class="booting"></div>
-    {:else if session.total === 0}
+    {#if session.total === 0}
       <DropZone
         {dragging}
         importing={session.importing}
@@ -178,10 +169,6 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
-  }
-
-  .booting {
-    flex: 1;
   }
 
   .drop-overlay {
